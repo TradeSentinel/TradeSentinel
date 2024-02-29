@@ -1,0 +1,1 @@
+Trade Sentinel's Frontend
