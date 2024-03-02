@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function VerifyEmail() {
 
+    const navigateTo = useNavigate();
     const [otp, setOtp] = useState(['', '', '', '']);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
 
@@ -19,17 +20,16 @@ export default function VerifyEmail() {
         }
     };
 
-    console.log(otp)
-
     return (
         <div>
-            <Link to='/'>
-                <button className="p-[0.625rem] ml-[-12px] bg-white rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M11.6666 5.8335L8.33329 10.0002L11.6666 14.1668" stroke="#28303F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
-            </Link>
+            <button
+                className="p-[0.625rem] ml-[-12px] bg-white rounded-full"
+                onClick={() => navigateTo(-1)}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M11.6666 5.8335L8.33329 10.0002L11.6666 14.1668" stroke="#28303F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            </button>
             <h2 className='mt-5 text-[1.5rem] font-semibold leading-8 text-[#202939]'>Verify your email</h2>
             <p className="text-sm leading-5 mt-3 text-[#202939]">
                 Check your inbox for your verification code. If you can&apos;t find it, check your spam/junk folder.

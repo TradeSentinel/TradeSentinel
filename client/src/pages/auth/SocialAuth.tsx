@@ -17,8 +17,8 @@ export default function SocialAuth() {
                     </svg>
                 </button>
             </div>
-            <div className="bg-[#111322] p-[2px] flex items-center w-4 h-4 mx-[-2px] curvedBox overflow-hidden">
-                
+            <div className="bg-[#111322] p-[2px] flex items-center w-3 h-5 mx-[-2px] curvedBox overflow-hidden">
+
             </div>
             <div className="bg-[#111322] p-[2px] flex items-center rounded-full w-full flex-grow">
                 <button className="rounded-full p-3 bg-white w-full flex items-center justify-center">

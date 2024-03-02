@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-export default function EmailVerified() {
+export default function PasswordChanged() {
     return (
         <div className="flex flex-col items-center justify-between flex-grow">
             <div className="flex-1"></div>
@@ -9,14 +9,13 @@ export default function EmailVerified() {
                     <img src="/verified.svg" />
                 </div>
                 <h2 className='text-[1.5rem] mt-12 text-center font-semibold leading-8 text-[#202939]'>
-                    Your email has <br />
-                    been verified
+                    Password Changed!
                 </h2>
-                <p className="text-sm mt-4 text-[#202939] text-center mt-">You can now start monitoring your currency prices. </p>
+                <p className="text-sm mt-4 text-[#202939] text-center mt-">Your password reset is complete. </p>
             </div>
-            <Link to='/' className="mt-auto w-full flex-1 flex flex-col justify-end">
+            <Link to='/login' className="mt-auto w-full flex-1 flex flex-col justify-end">
                 <button className="w-full py-[0.625rem] px-[1.125rem] font-medium text-white rounded-full bg-[#7F56D9]">
-                    Awesome, lets go
+                    Login with new password
                 </button>
             </Link>
         </div>

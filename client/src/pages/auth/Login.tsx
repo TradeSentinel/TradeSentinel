@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export default function Login() {
 
-    const navigateTo = useNavigate()
+    const navigateTo = useNavigate();
 
     return (
         <div className="flex flex-col flex-grow">
@@ -46,7 +46,7 @@ export default function Login() {
                                     </svg>
                                 </i>
                             </div>
-                            <Link to='/' className='text-sm text-[#267DFF] leading-5'>Forgot password?</Link>
+                            <Link to='/forgot_password' className='text-sm text-[#267DFF] leading-5'>Forgot password?</Link>
                         </div>
                     </div>
 
