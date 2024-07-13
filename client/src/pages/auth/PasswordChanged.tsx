@@ -2,11 +2,11 @@ import { Link } from "react-router-dom";
 
 export default function PasswordChanged() {
     return (
-        <div className="flex flex-col items-center justify-between flex-grow">
+        <div className="flex flex-col items-center justify-between flex-grow p-[1.25rem] pb-12">
             <div className="flex-1"></div>
             <div className="flex-1 verified_background">
                 <div className='flex items-center justify-center'>
-                    <img src="/verified.svg" />
+                    <img src="/passwordchanged.svg" />
                 </div>
                 <h2 className='text-[1.5rem] mt-12 text-center font-semibold leading-8 text-[#202939]'>
                     Password Changed!

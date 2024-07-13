@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function VerifyEmail() {
 
@@ -21,7 +21,7 @@ export default function VerifyEmail() {
     };
 
     return (
-        <div>
+        <div className=" p-[1.25rem] pb-12">
             <button
                 className="p-[0.625rem] ml-[-12px] bg-white rounded-full"
                 onClick={() => navigateTo(-1)}
@@ -34,26 +34,41 @@ export default function VerifyEmail() {
             <p className="text-sm leading-5 mt-3 text-[#202939]">
                 Check your inbox for your verification code. If you can&apos;t find it, check your spam/junk folder.
             </p>
-            <div className="mt-8 flex space-x-2 items-center justify-center px-8">
-                {otp.map((digit, index) => (
-                    <input
-                        key={index}
-                        ref={(el) => (inputRefs.current[index] = el)}
-                        className="bg-[#ffffff] text-[#364152] placeholder:text-[#CDD5DF] w-full rounded-[3rem] border-[0.5px] border-[#CDD5DF] py-4 px-2 text-center text-[2.25rem] outline-[1px] outline-[#D6BBFB]"
-                        type="tel"
-                        maxLength={1}
-                        value={digit}
-                        placeholder={`${index + 1}`}
-                        onChange={(e) => handleOtpChange(index, e.target.value)}
-                    />
-                ))}
-            </div>
-            <p className="text-sm leading-5 text-[#667085] text-center mt-6">Didn't receive code? <button className="text-[#9E77ED] font-medium">Resend</button></p>
-            <Link to='/verified'>
-                <button className="mt-[6rem] w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9]">
+            <form
+                className="mt-8"
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    navigateTo('/email_verified')
+                }}
+            >
+                <div className="flex space-x-2 items-center justify-center px-8">
+                    {otp.map((digit, index) => (
+                        <input
+                            key={index}
+                            ref={(el) => (inputRefs.current[index] = el)}
+                            className="bg-[#ffffff] text-[#364152] placeholder:text-[#CDD5DF] w-full rounded-[3rem] border-[0.5px] border-[#CDD5DF] py-4 px-2 text-center text-[2.25rem] outline-[1px] outline-[#D6BBFB]"
+                            type="tel"
+                            maxLength={1}
+                            value={digit}
+                            required
+                            placeholder={`${index + 1}`}
+                            onChange={(e) => handleOtpChange(index, e.target.value)}
+                        />
+                    ))}
+                </div>
+                <p className="text-sm leading-5 text-[#667085] text-center mt-6">
+                    {`Didn't receive code? `}
+                    <button
+                        className="text-[#9E77ED] font-medium"
+                        type="button"
+                    >
+                        Resend
+                    </button>
+                </p>
+                <button type="submit" className="mt-[6rem] w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9]">
                     Verify
                 </button>
-            </Link>
+            </form>
         </div>
     )
 }

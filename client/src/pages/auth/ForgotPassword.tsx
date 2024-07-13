@@ -1,14 +1,23 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom'
 
 
 export default function ForgotPassword() {
 
     const navigateTo = useNavigate();
+    const [email, setEmail] = useState('')
 
     return (
-        <div className='flex flex-col flex-grow'>
+        <form
+            className='flex flex-col flex-grow p-[1.25rem] pb-12'
+            onSubmit={(e) => {
+                e.preventDefault()
+                navigateTo('/reset_email_sent')
+            }}
+        >
             <div>
                 <button
+                    type='button'
                     className="p-[0.625rem] ml-[-12px] bg-white rounded-full"
                     onClick={() => navigateTo(-1)}
                 >
@@ -23,6 +32,10 @@ export default function ForgotPassword() {
                 <div className="flex flex-col gap-1 mt-8">
                     <label className="text-sm font-medium leading-5 text-[#364152]">Email</label>
                     <input
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        type='email'
                         className="bg-white text-[#121926] w-full px-[14px] py-[10px] rounded-xl outline-none border-[0.5px] border-[#E3E8EF]"
                         placeholder="Enter your email"
                     />
@@ -30,7 +43,6 @@ export default function ForgotPassword() {
             </div>
             <div className='mt-auto flex flex-col gap-8'>
                 <button
-                    onClick={()=>navigateTo('/reset_email_sent')}
                     className="w-full font-medium px-[18px] py-[0.625rem] text-white bg-[#7F56D9] rounded-full"
                 >
                     Reset password
@@ -39,6 +51,6 @@ export default function ForgotPassword() {
                     Remember password? <Link to='/login' className="text-[#9E77ED] font-medium">Log In</Link>
                 </p>
             </div>
-        </div>
+        </form>
     )
 }
