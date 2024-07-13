@@ -14,7 +14,8 @@ export default defineConfig({
 
         name: 'Trade Sentinel',
         short_name: 'Trade Sentinel',
-        start_url: '/',
+        display: "standalone",
+        start_url: "/?standalone=true",
         background_color: '#EEF2F6',
         theme_color: '#EEF2F6',
         icons: [

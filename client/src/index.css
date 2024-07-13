@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  min-height: calc(100% + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
 /* For WebKit browsers (Chrome, Safari) */
 .scrollbarHidden::-webkit-scrollbar {
   display: none;
@@ -95,7 +101,8 @@
 }
 
 .superballs__dot:nth-child(1)::before {
-  animation: orbit82140 var(--uib-speed) linear calc(var(--uib-speed) * -0.143) infinite;
+  animation: orbit82140 var(--uib-speed) linear calc(var(--uib-speed) * -0.143)
+    infinite;
 }
 
 .superballs__dot:nth-child(2) {
@@ -103,7 +110,8 @@
 }
 
 .superballs__dot:nth-child(2)::before {
-  animation: orbit82140 var(--uib-speed) linear calc(var(--uib-speed) / -2) infinite;
+  animation: orbit82140 var(--uib-speed) linear calc(var(--uib-speed) / -2)
+    infinite;
 }
 
 @keyframes orbit82140 {
