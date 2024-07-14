@@ -37,7 +37,7 @@ export default function Login() {
     }
 
     return (
-        <div className="flex flex-col flex-grow p-[1.25rem] pb-12">
+        <div className="flex flex-col flex-grow p-[1.25rem] pb-12 overflow-scroll">
             <div className="grid place-content-center min-h-[72px]">
                 <img src="/logo.svg" />
             </div>

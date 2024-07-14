@@ -6,7 +6,7 @@ export default function Account() {
     const location = useLocation()
 
     return (
-        <div className={`relative dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full `}>
+        <div className={`relative overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full `}>
             <div className="flex mt-3 items-center justify-center">
                 <div className="bg-white p-[2px] rounded-full">
                     <img

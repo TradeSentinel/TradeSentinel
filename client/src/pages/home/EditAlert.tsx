@@ -68,8 +68,8 @@ export default function EditAlert() {
     return (
         <>
             <ToastContainer />
-            <div className={`dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${pairModal === true || alertTypeModal === true ? 'blur-sm' : ''}`}>
-                <PageHeader name="Create Alert" />
+            <div className={`overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${pairModal === true || alertTypeModal === true ? 'blur-sm' : ''}`}>
+                <PageHeader name="Edit Alert" />
                 <section className="flex flex-col gap-3 mt-5">
                     <h3 className="text-[1.25rem] font-semibold text-[#202939] leading-8">Customize your alert</h3>
                     <p

@@ -68,7 +68,7 @@ export default function CreateAlert() {
     return (
         <>
             <ToastContainer />
-            <div className={`dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${pairModal === true || alertTypeModal === true ? 'blur-sm' : ''}`}>
+            <div className={`overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${pairModal === true || alertTypeModal === true ? 'blur-sm' : ''}`}>
                 <PageHeader name="Create Alert" />
                 <section className="flex flex-col gap-3 mt-5">
                     <h3 className="text-[1.25rem] font-semibold text-[#202939] leading-8">Customize your alert</h3>
@@ -172,7 +172,7 @@ export default function CreateAlert() {
                         </div>
                     </div>
                 </section>
-                <div className="mt-auto px-5 py-3 w-full">
+                <div className="mt-auto py-3 w-full">
                     <button
                         disabled={loading}
                         onClick={createNewAlert}

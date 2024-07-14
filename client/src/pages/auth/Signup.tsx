@@ -20,7 +20,7 @@ export default function Signup() {
     const { fullName, email, password } = userInfo
 
     return (
-        <div className="flex flex-col flex-grow p-[1.25rem] pb-12">
+        <div className="flex flex-col flex-grow p-[1.25rem] pb-12 overflow-scroll">
             <div className="grid place-content-center min-h-[72px]">
                 <img src="/logo.svg" />
             </div>
@@ -33,7 +33,7 @@ export default function Signup() {
                         e.preventDefault();
                         navigateTo('/verify_email')
                     }}
-                    className="mt-6 flex flex-col justify-between flex-grow"
+                    className="mt-6 flex flex-col justify-between flex-grow gap-6"
                 >
                     {/* Input Fields */}
                     <div className="flex flex-col gap-4">

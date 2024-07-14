@@ -8,14 +8,30 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // generates 'manifest.webmanifest' file on build
+      devOptions: {
+        enabled: true,
+      },
+      workbox: { 
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+            },
+          },
+        ],
+      },
       manifest: {
-        // caches the assets/icons mentioned (assets/* includes all the assets present in your src/ directory) 
-
         name: 'Trade Sentinel',
         short_name: 'Trade Sentinel',
         display: "standalone",
-        start_url: "/?standalone=true",
+        start_url: "/",
         background_color: '#EEF2F6',
         theme_color: '#EEF2F6',
         icons: [
@@ -30,10 +46,6 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      },
-      workbox: {
-        // defining cached files formats
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
       }
     })
   ],

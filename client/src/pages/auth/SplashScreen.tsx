@@ -5,7 +5,7 @@ export default function SplashScreen() {
     const navigateTo = useNavigate()
 
     return (
-        <div className="bg-[url(/landing_splash.png)] bg-center bg-no-repeat bg-cover h-full flex-1 flex flex-col justify-between p-[1.25rem] pb-12">
+        <div className="bg-[url(/landing_splash.png)] bg-center bg-no-repeat bg-cover dynamicHeight flex-1 flex flex-col justify-between p-[1.25rem] pb-12 mt-[-2rem]">
             <div></div>
             <div className="flex flex-col items-center">
                 <img src="/splash_icon.svg" />

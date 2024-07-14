@@ -10,7 +10,7 @@ import { useLocation } from "react-router-dom";
 // Component to show design for when a user does not have any alert on active and previous
 export function CreateFirstAlert() {
     return (
-        <div className="bg-white rounded-xl w-full flex flex-col items-center justify-center p-[0.625rem]">
+        <div className="bg-white rounded-xl w-full flex flex-col items-center justify-center p-[0.625rem] hegiht">
             <svg xmlns="http://www.w3.org/2000/svg" width="181" height="145" viewBox="0 0 181 145" fill="none">
                 <path fillRule="evenodd" clipRule="evenodd" d="M139.251 4.20569C142.599 2.27269 146.88 3.41982 148.813 6.76787C150.746 10.1159 149.599 14.397 146.251 16.33L111.61 36.33C114.958 34.397 119.239 35.5442 121.172 38.8922C123.105 42.2403 121.958 46.5214 118.61 48.4544L137.662 37.4544C141.01 35.5214 145.292 36.6685 147.225 40.0166C149.158 43.3646 148.01 47.6458 144.662 49.5788L135.851 54.6657C131.63 57.103 129.775 61.7929 131.708 65.1409C132.997 67.373 135.895 68.3937 140.404 68.2031C143.752 66.2701 148.033 67.4172 149.966 70.7653C151.899 74.1133 150.752 78.3945 147.404 80.3275L75.5239 121.827C72.1759 123.76 67.8948 122.613 65.9618 119.265C64.0288 115.917 65.1759 111.636 68.5239 109.703L34.7489 129.203C31.4009 131.136 27.1198 129.989 25.1868 126.641C23.2538 123.293 24.4009 119.012 27.7489 117.079L62.39 97.0788C65.738 95.1458 66.8851 90.8646 64.9521 87.5166C63.0191 84.1685 58.738 83.0214 55.39 84.9544L33.7393 97.4544C30.3913 99.3874 26.1101 98.2403 24.1771 94.8922C22.2442 91.5442 23.3913 87.263 26.7393 85.33L61.3803 65.33C58.0323 67.263 53.7512 66.1159 51.8182 62.7679C49.8852 59.4198 51.0323 55.1387 54.3803 53.2057L139.251 4.20569ZM153.251 28.4544C156.599 26.5214 160.88 27.6685 162.813 31.0166C164.746 34.3646 163.599 38.6458 160.251 40.5788C156.903 42.5118 152.622 41.3646 150.689 38.0166C148.756 34.6685 149.903 30.3874 153.251 28.4544Z" fill="#FCFAFF" />
                 <path fillRule="evenodd" clipRule="evenodd" d="M86.3911 46.6696V42.6696C86.3911 40.1843 88.4058 38.1696 90.8911 38.1696C93.3764 38.1696 95.3911 40.1843 95.3911 42.6696V46.6696" fill="white" />
@@ -35,7 +35,7 @@ export default function Homepage() {
     const completed = false
     const location = useLocation()
     const alerts = useGeneralAppStore((state) => state.alerts.active)
-    const name = useGeneralAppStore((state) => state.currentUser)
+    // const name = useGeneralAppStore((state) => state.currentUser)
     const updateActiveAlerts = useGeneralAppStore((state) => state.updateActiveAlerts)
     const showAlertInfo = useGeneralAppStore((state) => state.showAlertInfo)
     const updateShowAlertInfo = useGeneralAppStore((state) => state.updateShowAlertInfo)
@@ -123,7 +123,7 @@ export default function Homepage() {
 
     return (
         <>
-            <div id="blurredBackground" className={`relative dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${showAlertInfo ? 'blur-sm blurredBackground' : ''}`}>
+            <div id="blurredBackground" className={`overflow-scroll relative dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${showAlertInfo ? 'blur-sm blurredBackground' : ''}`}>
                 <div className="bg-white border-[#EEF2F6] border-[0.5px] p-[2px] rounded-full flex w-full items-center justify-between">
                     <div className="flex gap-4 items-center">
                         <i>
@@ -131,7 +131,7 @@ export default function Homepage() {
                         </i>
                         <div className="flex flex-col text-xs text-[#101828]">
                             <p>Welome Back,</p>
-                            <p className="font-medium">{name}</p>
+                            <p className="font-medium">Spandor</p>
                         </div>
                     </div>
                     <p className="p-[0.625rem]">👋</p>
@@ -170,7 +170,7 @@ export default function Homepage() {
                     <HomeBottomNavbar path={location.pathname} />
                 </div>
             </div>
-            <div className='absolute bottom-0 w-full left-0 flex items-center justify-center'>
+            <div className='fixed bottom-0 w-full left-0 flex items-center justify-center'>
                 {showAlertInfo && <AlertInfoToShow />}
             </div>
         </>
