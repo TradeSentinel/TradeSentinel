@@ -7,6 +7,8 @@ import Homepage from "./pages/home/Homepage";
 import CreateAlert from "./pages/home/CreateAlert";
 import Account from "./pages/home/Account";
 import AlertAddedSuccessfully from "./pages/home/AlertAddedSuccessfully";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Lazy-loaded components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -20,43 +22,6 @@ const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const SplashScreen = lazy(() => import('./pages/auth/SplashScreen'));
 
 const App: React.FC = () => {
-  // const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // useEffect(() => {
-  //   const container = containerRef.current;
-  //   if (!container) return;
-
-  //   let startY: number;
-
-  //   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-  //     startY = e.touches[0].clientY;
-  //   };
-
-  //   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-  //     const currentY = e.touches[0].clientY;
-  //     const scrollTop = container.scrollTop;
-  //     const scrollHeight = container.scrollHeight;
-  //     const clientHeight = container.clientHeight;
-
-  //     // Prevent scrolling up when already at the top
-  //     if (scrollTop <= 0 && currentY > startY) {
-  //       e.preventDefault();
-  //     }
-
-  //     // Prevent scrolling down when already at the bottom
-  //     if (scrollTop + clientHeight >= scrollHeight && currentY < startY) {
-  //       e.preventDefault();
-  //     }
-  //   };
-
-  //   container.addEventListener('touchstart', handleTouchStart as unknown as EventListener);
-  //   container.addEventListener('touchmove', handleTouchMove as unknown as EventListener, { passive: false });
-
-  //   return () => {
-  //     container.removeEventListener('touchstart', handleTouchStart as unknown as EventListener);
-  //     container.removeEventListener('touchmove', handleTouchMove as unknown as EventListener);
-  //   };
-  // }, []);
 
   const loaderStyle = "dynamicHeight w-full flex items-center justify-center";
 
@@ -196,6 +161,7 @@ const App: React.FC = () => {
       // ref={containerRef}
        className="max-w-[600px] w-full dynamicHeight font-ibm flex flex-col pt-8"
        >
+        <ToastContainer />
         <RouterProvider router={Router} />
       </div>
     </div>

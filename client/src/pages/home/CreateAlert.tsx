@@ -3,8 +3,7 @@ import PageHeader from "../../components/homeComponents/PageHeader";
 import MiniLoader from "../../components/MiniLoader";
 import CurrencyPairs from "../../components/homeComponents/CurrencyPairs";
 import AlertType from "../../components/homeComponents/AlertType";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 
@@ -67,7 +66,6 @@ export default function CreateAlert() {
 
     return (
         <>
-            <ToastContainer />
             <div className={`overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${pairModal === true || alertTypeModal === true ? 'blur-sm' : ''}`}>
                 <PageHeader name="Create Alert" />
                 <section className="flex flex-col gap-3 mt-5">
