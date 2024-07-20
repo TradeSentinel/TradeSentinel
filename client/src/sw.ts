@@ -16,12 +16,12 @@ self.addEventListener('push', (event: PushEvent) => {
   )
 })
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  // Add custom behavior when notification is clicked
-  // For example, open a specific page of your app
-  clients.openWindow('/')
-})
+// self.addEventListener('notificationclick', (event) => {
+//   event.notification.close()
+//   // Add custom behavior when notification is clicked
+//   // For example, open a specific page of your app
+//   clients.openWindow('/')
+// })
 
 // Use the imported precacheAndRoute method to set up precaching
 precacheAndRoute(self.__WB_MANIFEST)
