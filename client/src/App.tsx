@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { RouterProvider, createBrowserRouter, RouteObject } from "react-router-dom";
 import PageLoader from "./components/PageLoader";
 import ErrorPage from "./components/ErrorPage";
@@ -9,6 +9,9 @@ import Account from "./pages/home/Account";
 import AlertAddedSuccessfully from "./pages/home/AlertAddedSuccessfully";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./utils/firebaseInit";
+import { useGeneralAppStore } from "./utils/generalAppStore";
 
 // Lazy-loaded components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -154,6 +157,17 @@ const App: React.FC = () => {
   ];
 
   const Router = createBrowserRouter(routes);
+
+  // const currentUser = useGeneralAppStore((state)=>state.currentUser)
+  
+  const updateUser = useGeneralAppStore((state)=>state.updateUser)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      updateUser(currentUser);
+    });
+
+    return () => unsubscribe();
+  }, [updateUser]);
 
   return (
     <div className="bg-[#EEF2F6] flex items-center justify-center">

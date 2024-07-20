@@ -1,3 +1,4 @@
+import { User } from "firebase/auth";
 import { create } from "zustand";
 
 export type generalAlertType = {
@@ -9,7 +10,7 @@ export type generalAlertType = {
 }
 
 export type State = {
-  currentUser: null | string,
+  currentUser: User | null,
   alerts: {
     previous: generalAlertType[],
     active: generalAlertType[]
@@ -20,7 +21,7 @@ export type State = {
 }
 
 export type Actions = {
-  updateUser: (user: string) => void,
+  updateUser: (user: User | null) => void,
   updateActiveAlerts: (newAlerts: generalAlertType[]) => void,
   updatePreviousAlerts: (newAlerts: generalAlertType[]) => void,
   updateShowAlertInfo: (toShow: boolean) => void
@@ -29,12 +30,12 @@ export type Actions = {
 }
 
 export const useGeneralAppStore = create<State & Actions>((set) => ({
-  currentUser: "Aydot",
+  currentUser: null,
   alerts: {
     previous: [],
     active: []
   },
-  updateUser: (user: string) => set({ currentUser: user }),
+  updateUser: (user: User | null) => set({ currentUser: user }),
   updateActiveAlerts: (newAlert: generalAlertType[]) => set((state) => ({
     alerts: {
       ...state.alerts,

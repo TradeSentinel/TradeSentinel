@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 import MiniLoader from "../../components/MiniLoader";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../utils/firebaseInit";
+import { toast } from "react-toastify";
 
 export default function Login() {
 
@@ -26,13 +29,26 @@ export default function Login() {
     async function loginUser() {
         setLoading(true)
         try {
-            setTimeout(() => {
-                updateUser(email)
-                setLoading(false)
-                navigateTo('/dashboard')
-            }, 2500)
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            updateUser(userCredential.user);
+            toast("User logged in successfully", {
+                position: "top-right",
+                autoClose: 2000,
+                theme: "light",
+                type: "success"
+            })
+
+            navigateTo("/dashboard")
         } catch (error) {
-            console.error(error)
+            console.error('Error signing in:', error);
+            toast("Error logging in", {
+                position: "top-right",
+                autoClose: 2000,
+                theme: "light",
+                type: "error"
+            })
+        } finally {
+            setLoading(false)
         }
     }
 

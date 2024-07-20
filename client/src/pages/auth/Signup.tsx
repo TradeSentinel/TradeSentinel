@@ -2,19 +2,62 @@ import { useNavigate } from "react-router-dom";
 import SocialAuth from "./SocialAuth";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../../utils/firebaseInit";
+import { doc, setDoc } from "firebase/firestore";
+import { useGeneralAppStore } from "../../utils/generalAppStore";
+import { toast } from "react-toastify";
+import MiniLoader from "../../components/MiniLoader";
 
 export default function Signup() {
 
     const navigateTo = useNavigate();
+    const updateUser = useGeneralAppStore((state)=>state.updateUser)
     const [passwordShown, setPasswordShown] = useState(false);
     const [userInfo, setUserInfo] = useState({
         email: '',
         fullName: '',
         password: ''
     })
+    const [loading, setLoading] = useState(false);
 
     function editUserInfo(infoName: string, value: string) {
         setUserInfo((prevInfo) => ({ ...prevInfo, [infoName]: value }))
+    }
+
+    async function signupUser(){
+        setLoading(true)
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user
+
+            await setDoc(doc(db, "users", user.uid), {
+                email: user.email,
+                fullName: fullName,
+                userId: user.uid,
+                createdAt: new Date()
+            });
+
+            toast("User signed up successfully", {
+                position: "top-right",
+                autoClose: 2000,
+                theme: "light",
+                type: "success"
+            })
+
+            updateUser(user)
+            navigateTo("/dashboard")
+        } catch(error){
+            console.error(error);
+            toast("Error signig up", {
+                position: "top-right",
+                autoClose: 2000,
+                theme: "light",
+                type: "error"
+            })
+        } finally {
+            setLoading(false);
+        }
     }
 
     const { fullName, email, password } = userInfo
@@ -31,7 +74,7 @@ export default function Signup() {
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        navigateTo('/verify_email')
+                        signupUser()
                     }}
                     className="mt-6 flex flex-col justify-between flex-grow gap-6"
                 >
@@ -83,9 +126,10 @@ export default function Signup() {
                     <div className="mt-auto">
                         <div className="flex flex-col gap-6">
                             <button
-                                className="w-full font-medium px-[18px] py-[0.625rem] text-white bg-[#7F56D9] rounded-full"
+                                type="submit"
+                                className="w-full font-medium px-[18px] py-[0.625rem] text-white bg-[#7F56D9] rounded-full flex items-center justify-center"
                             >
-                                Create Account
+                                {loading ? <MiniLoader /> : "Create Account"}
                             </button>
                             <div className="flex flex-row items-center justify-between gap-2">
                                 <div className="flex-1 border-b-[0.5px] border-[#CDD5DF]"></div>
