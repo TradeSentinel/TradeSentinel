@@ -37,9 +37,11 @@ export type Actions = {
   setAuthLoading: (loading: boolean) => void,
   updateActiveAlerts: (newAlerts: generalAlertType[]) => void,
   updatePreviousAlerts: (newAlerts: generalAlertType[]) => void,
-  updateShowAlertInfo: (toShow: boolean) => void
-  updateCurrentInfo: (info: generalAlertType) => void,
-  updateNewAlert: (alert: Partial<generalAlertType>) => void
+  updateShowAlertInfo: (toShow: boolean) => void,
+  updateCurrentInfo: (info: generalAlertType | null) => void,
+  updateNewAlert: (alert: Partial<generalAlertType>) => void,
+  removeAlertFromLists: (alertId: string) => void,
+  updateAlertInLists: (updatedAlert: generalAlertType) => void
 }
 
 export const useGeneralAppStore = create<State & Actions>((set) => ({
@@ -52,38 +54,65 @@ export const useGeneralAppStore = create<State & Actions>((set) => ({
     previous: [],
     active: []
   },
-  updateUser: (user: User | null) => set({ currentUser: user }),
-  updateUserProfileName: (name: string | null) => set({ userProfileName: name }),
-  updateHasSetAvatar: (status: boolean) => set({ hasSetAvatar: status }),
-  updatePwaPromptDismissed: (status: boolean) => set({ pwaPromptDismissed: status }),
-  setAuthLoading: (loading: boolean) => set({ authLoading: loading }),
-  updateActiveAlerts: (newAlerts: generalAlertType[]) => set((state) => ({
-    alerts: {
-      ...state.alerts,
-      active: newAlerts
-    }
-  })),
-  updatePreviousAlerts: (newAlerts: generalAlertType[]) => set((state) => ({
-    alerts: {
-      ...state.alerts,
-      previous: newAlerts
-    }
-  })),
-  showAlertInfo: false,
-  updateShowAlertInfo: (toShow: boolean) => set({ showAlertInfo: toShow }),
-  currentInfo: null,
-  updateCurrentInfo: (info: generalAlertType) => set({ currentInfo: info }),
   newAlert: {
     currencyPair: '',
     triggerPrice: '',
     alertType: '',
     status: 'active',
-    notificationPreferences: {
-      email: true,
-      push: false
-    }
+    notificationPreferences: { email: true, push: false }
   },
-  updateNewAlert: (alert: Partial<generalAlertType>) => set((state) => ({
-    newAlert: { ...state.newAlert, ...alert }
-  }))
+  showAlertInfo: false,
+  currentInfo: null,
+  updateUser: (user: User | null) => set({ currentUser: user }),
+  updateUserProfileName: (name: string | null) => set({ userProfileName: name }),
+  updateHasSetAvatar: (status: boolean) => set({ hasSetAvatar: status }),
+  updatePwaPromptDismissed: (status: boolean) => set({ pwaPromptDismissed: status }),
+  setAuthLoading: (loading: boolean) => set({ authLoading: loading }),
+  updateActiveAlerts: (newAlerts: generalAlertType[]) =>
+    set((state) => ({ alerts: { ...state.alerts, active: newAlerts } })),
+  updatePreviousAlerts: (newAlerts: generalAlertType[]) =>
+    set((state) => ({ alerts: { ...state.alerts, previous: newAlerts } })),
+  updateShowAlertInfo: (toShow: boolean) => set({ showAlertInfo: toShow }),
+  updateCurrentInfo: (info: generalAlertType | null) => set({ currentInfo: info }),
+  updateNewAlert: (alert: Partial<generalAlertType>) =>
+    set((state) => ({ newAlert: { ...state.newAlert, ...alert } })),
+  removeAlertFromLists: (alertId: string) =>
+    set((state) => ({
+      alerts: {
+        active: state.alerts.active.filter(alert => alert.id !== alertId),
+        previous: state.alerts.previous.filter(alert => alert.id !== alertId),
+      }
+    })),
+  updateAlertInLists: (updatedAlert: generalAlertType) =>
+    set((state) => {
+      const newStatus = updatedAlert.status;
+      let newActive = [...state.alerts.active];
+      let newPrevious = [...state.alerts.previous];
+
+      // Remove from both lists first
+      newActive = newActive.filter(a => a.id !== updatedAlert.id);
+      newPrevious = newPrevious.filter(a => a.id !== updatedAlert.id);
+
+      // Add to the correct list based on new status
+      if (newStatus === 'active') {
+        newActive.push(updatedAlert);
+        // Re-sort by createdAt if necessary, or rely on fetching for order
+        newActive.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      } else if (['paused', 'triggered', 'cancelled'].includes(newStatus)) {
+        newPrevious.push(updatedAlert);
+        newPrevious.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      }
+      // Ensure limits are respected after update
+      newActive = newActive.slice(0, 10);
+      newPrevious = newPrevious.slice(0, 5);
+
+      return {
+        alerts: {
+          active: newActive,
+          previous: newPrevious,
+        },
+        // Also update currentInfo if the updated alert is the one being viewed
+        currentInfo: state.currentInfo?.id === updatedAlert.id ? updatedAlert : state.currentInfo
+      };
+    }),
 }));

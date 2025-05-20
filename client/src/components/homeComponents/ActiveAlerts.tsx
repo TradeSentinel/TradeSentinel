@@ -1,6 +1,7 @@
 import { useGeneralAppStore } from "../../utils/generalAppStore"
 import { generalAlertType } from "../../utils/generalAppStore"
 import { LuDot } from "react-icons/lu";
+import { formatFirestoreTimestamp } from "../../utils/formatDate";
 
 export default function ActiveAlerts() {
     const alerts = useGeneralAppStore(state => state.alerts.active)
@@ -12,6 +13,14 @@ export default function ActiveAlerts() {
         updateShowAlertInfo(true)
     }
 
+    if (alerts.length === 0) {
+        return (
+            <div className="mt-6 text-center text-sm text-gray-500">
+                No active alerts found.
+            </div>
+        );
+    }
+
     return (
         <div className="mt-3 flex flex-col">
             {alerts.map((alert, index) => {
@@ -21,8 +30,8 @@ export default function ActiveAlerts() {
                 return (
                     <div
                         onClick={() => showAlertInfo(alert)}
-                        key={index}
-                        className={`${isLastNumber ? '' : 'border-b-[1px] border-b-[#E3E8EF]'} flex flex-col w-full py-2`}
+                        key={alert.id || index}
+                        className={`${isLastNumber ? '' : 'border-b-[1px] border-b-[#E3E8EF]'} flex flex-col w-full py-2 cursor-pointer hover:bg-gray-50 transition-colors`}
                     >
                         <div className="flex items-center gap-1 text-[#121926] text-sm leading-5">
                             <p>{alert.currencyPair}</p>
@@ -30,7 +39,7 @@ export default function ActiveAlerts() {
                             <p>{alert.alertType}</p>
                             <p>{alert.triggerPrice}</p>
                         </div>
-                        <p className="text-xs text-[#697586]">Jan 29 at 14:57</p>
+                        <p className="text-xs text-[#697586]">{formatFirestoreTimestamp(alert.createdAt)}</p>
                     </div>
                 )
             })}

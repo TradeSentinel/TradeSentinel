@@ -25,6 +25,7 @@ const PasswordChanged = lazy(() => import('./pages/auth/PasswordChanged'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const SplashScreen = lazy(() => import('./pages/auth/SplashScreen'));
 const SetupPWA = lazy(() => import('./pages/info/SetupPWA'));
+const EditAlert = lazy(() => import('./pages/home/EditAlert'));
 
 const App: React.FC = () => {
 
@@ -162,6 +163,17 @@ const App: React.FC = () => {
         <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
           <ProtectedRoutes>
             <SetupPWA />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
+    },
+    {
+      path: '/edit_alert/:alertId',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <EditAlert />
           </ProtectedRoutes>
         </Suspense>
       ),

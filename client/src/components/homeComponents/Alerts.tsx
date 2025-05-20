@@ -1,5 +1,6 @@
 import { useState } from "react"
 import ActiveAlerts from "./ActiveAlerts"
+import PreviousAlerts from "./PreviousAlerts"
 
 export default function Alerts() {
     const [activeSection, setActiveSession] = useState('active')
@@ -20,8 +21,9 @@ export default function Alerts() {
                     PREVIOUS
                 </button>
             </div>
-            <div>
+            <div className="w-full">
                 {activeSection === 'active' && <ActiveAlerts />}
+                {activeSection === 'previous' && <PreviousAlerts />}
             </div>
         </>
     )
