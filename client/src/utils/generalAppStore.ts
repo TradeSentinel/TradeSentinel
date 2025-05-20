@@ -6,12 +6,20 @@ export type generalAlertType = {
   alertType: string,
   triggerPrice: string,
   status: string,
-  notification: string
+  notificationPreferences: {
+    email: boolean,
+    push: boolean
+  },
+  id?: string,
+  createdAt?: any
 }
 
 export type State = {
   currentUser: User | null,
   userProfileName: string | null,
+  hasSetAvatar: boolean,
+  pwaPromptDismissed: boolean,
+  authLoading: boolean,
   alerts: {
     previous: generalAlertType[],
     active: generalAlertType[]
@@ -24,32 +32,41 @@ export type State = {
 export type Actions = {
   updateUser: (user: User | null) => void,
   updateUserProfileName: (name: string | null) => void,
+  updateHasSetAvatar: (status: boolean) => void,
+  updatePwaPromptDismissed: (status: boolean) => void,
+  setAuthLoading: (loading: boolean) => void,
   updateActiveAlerts: (newAlerts: generalAlertType[]) => void,
   updatePreviousAlerts: (newAlerts: generalAlertType[]) => void,
   updateShowAlertInfo: (toShow: boolean) => void
   updateCurrentInfo: (info: generalAlertType) => void,
-  updateNewAlert: (alert: generalAlertType) => void
+  updateNewAlert: (alert: Partial<generalAlertType>) => void
 }
 
 export const useGeneralAppStore = create<State & Actions>((set) => ({
   currentUser: null,
   userProfileName: null,
+  hasSetAvatar: false,
+  pwaPromptDismissed: false,
+  authLoading: true,
   alerts: {
     previous: [],
     active: []
   },
   updateUser: (user: User | null) => set({ currentUser: user }),
   updateUserProfileName: (name: string | null) => set({ userProfileName: name }),
-  updateActiveAlerts: (newAlert: generalAlertType[]) => set((state) => ({
+  updateHasSetAvatar: (status: boolean) => set({ hasSetAvatar: status }),
+  updatePwaPromptDismissed: (status: boolean) => set({ pwaPromptDismissed: status }),
+  setAuthLoading: (loading: boolean) => set({ authLoading: loading }),
+  updateActiveAlerts: (newAlerts: generalAlertType[]) => set((state) => ({
     alerts: {
       ...state.alerts,
-      active: newAlert
+      active: newAlerts
     }
   })),
-  updatePreviousAlerts: (newAlert: generalAlertType[]) => set((state) => ({
+  updatePreviousAlerts: (newAlerts: generalAlertType[]) => set((state) => ({
     alerts: {
       ...state.alerts,
-      previous: newAlert
+      previous: newAlerts
     }
   })),
   showAlertInfo: false,
@@ -60,8 +77,13 @@ export const useGeneralAppStore = create<State & Actions>((set) => ({
     currencyPair: '',
     triggerPrice: '',
     alertType: '',
-    status: '',
-    notification: ''
+    status: 'active',
+    notificationPreferences: {
+      email: true,
+      push: false
+    }
   },
-  updateNewAlert: (alert: generalAlertType) => set({ newAlert: alert })
+  updateNewAlert: (alert: Partial<generalAlertType>) => set((state) => ({
+    newAlert: { ...state.newAlert, ...alert }
+  }))
 }));

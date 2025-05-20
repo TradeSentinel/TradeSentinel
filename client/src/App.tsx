@@ -24,6 +24,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const PasswordChanged = lazy(() => import('./pages/auth/PasswordChanged'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const SplashScreen = lazy(() => import('./pages/auth/SplashScreen'));
+const SetupPWA = lazy(() => import('./pages/info/SetupPWA'));
 
 const App: React.FC = () => {
 
@@ -154,6 +155,17 @@ const App: React.FC = () => {
         </Suspense>
       ),
       errorElement: <ErrorPage />
+    },
+    {
+      path: '/setup_pwa',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <SetupPWA />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
     }
   ];
 
@@ -161,6 +173,9 @@ const App: React.FC = () => {
 
   const updateUser = useGeneralAppStore((state) => state.updateUser)
   const updateUserProfileName = useGeneralAppStore((state) => state.updateUserProfileName);
+  const updateHasSetAvatar = useGeneralAppStore((state) => state.updateHasSetAvatar);
+  const updatePwaPromptDismissed = useGeneralAppStore((state) => state.updatePwaPromptDismissed);
+  const setAuthLoading = useGeneralAppStore((state) => state.setAuthLoading);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -172,20 +187,32 @@ const App: React.FC = () => {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             updateUserProfileName(userData.fullName || null);
+            updateHasSetAvatar(!!userData.avatarUrl);
+            updatePwaPromptDismissed(!!userData.pwaPromptDismissed);
           } else {
             updateUserProfileName(null);
+            updateHasSetAvatar(false);
+            updatePwaPromptDismissed(false);
           }
         } catch (error) {
           console.error("Error fetching user document from Firestore:", error);
           updateUserProfileName(null);
+          updateHasSetAvatar(false);
+          updatePwaPromptDismissed(false);
         }
       } else {
         updateUserProfileName(null);
+        updateHasSetAvatar(false);
+        updatePwaPromptDismissed(false);
       }
+      setAuthLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [updateUser, updateUserProfileName]);
+    return () => {
+      unsubscribe();
+      setAuthLoading(true);
+    }
+  }, [updateUser, updateUserProfileName, updateHasSetAvatar, updatePwaPromptDismissed, setAuthLoading]);
 
   return (
     <div className="bg-[#EEF2F6] flex items-center justify-center">
