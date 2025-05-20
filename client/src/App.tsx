@@ -10,7 +10,8 @@ import AlertAddedSuccessfully from "./pages/home/AlertAddedSuccessfully";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./utils/firebaseInit";
+import { auth, db } from "./utils/firebaseInit";
+import { doc, getDoc } from "firebase/firestore";
 import { useGeneralAppStore } from "./utils/generalAppStore";
 
 // Lazy-loaded components
@@ -158,23 +159,40 @@ const App: React.FC = () => {
 
   const Router = createBrowserRouter(routes);
 
-  // const currentUser = useGeneralAppStore((state)=>state.currentUser)
-  
-  const updateUser = useGeneralAppStore((state)=>state.updateUser)
+  const updateUser = useGeneralAppStore((state) => state.updateUser)
+  const updateUserProfileName = useGeneralAppStore((state) => state.updateUserProfileName);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       updateUser(currentUser);
+      if (currentUser) {
+        const userDocRef = doc(db, "users", currentUser.uid);
+        try {
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            updateUserProfileName(userData.fullName || null);
+          } else {
+            updateUserProfileName(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user document from Firestore:", error);
+          updateUserProfileName(null);
+        }
+      } else {
+        updateUserProfileName(null);
+      }
     });
 
     return () => unsubscribe();
-  }, [updateUser]);
+  }, [updateUser, updateUserProfileName]);
 
   return (
     <div className="bg-[#EEF2F6] flex items-center justify-center">
-      <div 
-      // ref={containerRef}
-       className="max-w-[600px] w-full dynamicHeight font-ibm flex flex-col pt-8"
-       >
+      <div
+        // ref={containerRef}
+        className="max-w-[600px] w-full dynamicHeight font-ibm flex flex-col pt-8"
+      >
         <ToastContainer />
         <RouterProvider router={Router} />
       </div>

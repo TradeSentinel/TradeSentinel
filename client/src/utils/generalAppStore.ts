@@ -11,6 +11,7 @@ export type generalAlertType = {
 
 export type State = {
   currentUser: User | null,
+  userProfileName: string | null,
   alerts: {
     previous: generalAlertType[],
     active: generalAlertType[]
@@ -22,6 +23,7 @@ export type State = {
 
 export type Actions = {
   updateUser: (user: User | null) => void,
+  updateUserProfileName: (name: string | null) => void,
   updateActiveAlerts: (newAlerts: generalAlertType[]) => void,
   updatePreviousAlerts: (newAlerts: generalAlertType[]) => void,
   updateShowAlertInfo: (toShow: boolean) => void
@@ -31,11 +33,13 @@ export type Actions = {
 
 export const useGeneralAppStore = create<State & Actions>((set) => ({
   currentUser: null,
+  userProfileName: null,
   alerts: {
     previous: [],
     active: []
   },
   updateUser: (user: User | null) => set({ currentUser: user }),
+  updateUserProfileName: (name: string | null) => set({ userProfileName: name }),
   updateActiveAlerts: (newAlert: generalAlertType[]) => set((state) => ({
     alerts: {
       ...state.alerts,

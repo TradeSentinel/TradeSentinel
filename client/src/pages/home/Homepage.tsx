@@ -35,7 +35,12 @@ export default function Homepage() {
     const completed = false
     const location = useLocation()
     const alerts = useGeneralAppStore((state) => state.alerts.active)
-    // const name = useGeneralAppStore((state) => state.currentUser)
+    const currentUser = useGeneralAppStore((state) => state.currentUser);
+    const userProfileName = useGeneralAppStore((state) => state.userProfileName);
+
+    // Updated username logic
+    const userName = userProfileName || currentUser?.displayName || currentUser?.email?.split('@')[0] || "User";
+
     const updateActiveAlerts = useGeneralAppStore((state) => state.updateActiveAlerts)
     const showAlertInfo = useGeneralAppStore((state) => state.showAlertInfo)
     const updateShowAlertInfo = useGeneralAppStore((state) => state.updateShowAlertInfo)
@@ -131,7 +136,7 @@ export default function Homepage() {
                         </i>
                         <div className="flex flex-col text-xs text-[#101828]">
                             <p>Welome Back,</p>
-                            <p className="font-medium">Spandor</p>
+                            <p className="font-medium">{userName}</p>
                         </div>
                     </div>
                     <p className="p-[0.625rem]">👋</p>

@@ -21,13 +21,13 @@ const SplashScreen: React.FC = () => {
             <div></div>
             <div className="flex flex-col items-center">
                 <img src="/splash_icon.svg" alt="Splash Icon" />
-                <div className="mt-5 flex flex-col items-center gap-3 text-center text-white">
-                    <h1 className="max-w-[250px] tracking-[-0.72px] leading-[110%] text-[2.25rem] font-bold">Price alerts made simple</h1>
-                    <p className="text-white max-w-[280px] text-center">Helping traders make informed trade decisions</p>
+                <div className="max-w-[280px] mt-5 flex flex-col items-center gap-3 text-center text-white">
+                    <h1 className="tracking-[-0.72px] leading-[2.25rem] text-[1.875rem] font-bold">Price alerts anywhere, anytime</h1>
+                    <p className="text-white text-center">Helping traders make better trade decisions within reach</p>
                 </div>
             </div>
             <button onClick={() => navigateTo("/signup")} className="w-full bg-white rounded-full font-medium py-[10px] px-[18px] text-[#42307D]">
-                Get started now
+               Trade Better
             </button>
         </div>
     );
