@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import SocialAuth from "./SocialAuth";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification, ActionCodeSettings } from "firebase/auth";
 import { auth, db } from "../../utils/firebaseInit";
 import { doc, setDoc } from "firebase/firestore";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
@@ -12,7 +12,7 @@ import MiniLoader from "../../components/MiniLoader";
 export default function Signup() {
 
     const navigateTo = useNavigate();
-    const updateUser = useGeneralAppStore((state)=>state.updateUser)
+    const updateUser = useGeneralAppStore((state) => state.updateUser)
     const [passwordShown, setPasswordShown] = useState(false);
     const [userInfo, setUserInfo] = useState({
         email: '',
@@ -25,42 +25,57 @@ export default function Signup() {
         setUserInfo((prevInfo) => ({ ...prevInfo, [infoName]: value }))
     }
 
-    async function signupUser(){
+    const { fullName, email, password } = userInfo
+
+    const actionCodeSettings: ActionCodeSettings = {
+        url: import.meta.env.VITE_EMAIL_VERIFICATION_REDIRECT_URL || 'http://localhost:5173/email-verified',
+        handleCodeInApp: true,
+    };
+
+    async function signupUser() {
         setLoading(true)
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user
+            const user = userCredential.user;
+
+            await sendEmailVerification(user, actionCodeSettings);
 
             await setDoc(doc(db, "users", user.uid), {
                 email: user.email,
                 fullName: fullName,
                 userId: user.uid,
-                createdAt: new Date()
+                createdAt: new Date(),
+                emailVerified: user.emailVerified
             });
 
-            toast("User signed up successfully", {
+            toast("Signup successful! Please check your email to verify your account.", {
                 position: "top-right",
-                autoClose: 2000,
+                autoClose: 5000,
                 theme: "light",
                 type: "success"
-            })
+            });
 
-            updateUser(user)
-            navigateTo("/dashboard")
-        } catch(error){
+            updateUser(user);
+            navigateTo("/verify_email");
+
+        } catch (error: any) {
             console.error(error);
-            toast("Error signig up", {
+            let errorMessage = "Error signing up";
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = "This email is already in use. Please log in or use a different email.";
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = "Password is too weak. Please choose a stronger password.";
+            }
+            toast(errorMessage, {
                 position: "top-right",
-                autoClose: 2000,
+                autoClose: 3000,
                 theme: "light",
                 type: "error"
-            })
+            });
         } finally {
             setLoading(false);
         }
     }
-
-    const { fullName, email, password } = userInfo
 
     return (
         <div className="flex flex-col flex-grow p-[1.25rem] pb-12 overflow-scroll">

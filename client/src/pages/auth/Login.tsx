@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 import MiniLoader from "../../components/MiniLoader";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../../utils/firebaseInit";
 import { toast } from "react-toastify";
 
@@ -30,23 +30,42 @@ export default function Login() {
         setLoading(true)
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            updateUser(userCredential.user);
-            toast("User logged in successfully", {
-                position: "top-right",
-                autoClose: 2000,
-                theme: "light",
-                type: "success"
-            })
+            const user = userCredential.user;
 
-            navigateTo("/dashboard")
-        } catch (error) {
+            if (user.emailVerified) {
+                updateUser(user);
+                toast("User logged in successfully", {
+                    position: "top-right",
+                    autoClose: 2000,
+                    theme: "light",
+                    type: "success"
+                })
+
+                navigateTo("/dashboard")
+            } else {
+                toast.warn("Please verify your email before logging in. Check your inbox for the verification link.", {
+                    position: "top-right",
+                    autoClose: 5000,
+                    theme: "light",
+                });
+                await signOut(auth);
+                updateUser(null);
+                navigateTo("/verify-email");
+            }
+        } catch (error: any) {
             console.error('Error signing in:', error);
-            toast("Error logging in", {
+            let errorMessage = "Error logging in";
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                errorMessage = "Invalid email or password. Please try again.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later."
+            }
+            toast(errorMessage, {
                 position: "top-right",
-                autoClose: 2000,
+                autoClose: 3000,
                 theme: "light",
                 type: "error"
-            })
+            });
         } finally {
             setLoading(false)
         }

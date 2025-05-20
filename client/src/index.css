@@ -53,6 +53,9 @@ body {
 
 .verified_background {
   background-image: url("/vbackground.png");
+  /* background-size: cover; */
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .superballs {

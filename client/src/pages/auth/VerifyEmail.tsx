@@ -1,74 +1,80 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth } from "../../utils/firebaseInit";
+import { sendEmailVerification, ActionCodeSettings } from "firebase/auth";
+import { toast } from "react-toastify";
+import MiniLoader from "../../components/MiniLoader";
 
 export default function VerifyEmail() {
-
     const navigateTo = useNavigate();
-    const [otp, setOtp] = useState(['', '', '', '']);
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
+    const [loading, setLoading] = useState(false);
 
-    const handleOtpChange = (index: number, value: string) => {
-        const newPin = [...otp];
-        newPin[index] = value;
-        setOtp(newPin);
+    const actionCodeSettings: ActionCodeSettings = {
+        url: import.meta.env.VITE_EMAIL_VERIFICATION_REDIRECT_URL || 'http://localhost:5173/email-verified',
+        handleCodeInApp: true,
+    };
 
-        // Move focus to the next or previous input box based on user input
-        if (value !== '' && index < otp.length - 1) {
-            inputRefs.current[index + 1]?.focus();
-        } else if (value === '' && index > 0) {
-            inputRefs.current[index - 1]?.focus();
+    const handleResendVerificationEmail = async () => {
+        setLoading(true);
+        const user = auth.currentUser;
+        if (user) {
+            try {
+                await sendEmailVerification(user, actionCodeSettings);
+                toast.success("Verification email sent! Please check your inbox (and spam folder).", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "light",
+                });
+            } catch (error: any) {
+                console.error("Error resending verification email:", error);
+                toast.error(`Error: ${error.message}`, {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "light",
+                });
+            }
+        } else {
+            toast.info("Please log in again to resend the verification email.", {
+                position: "top-right",
+                autoClose: 3000,
+                theme: "light",
+            });
+            navigateTo("/login");
         }
+        setLoading(false);
     };
 
     return (
-        <div className=" p-[1.25rem] pb-12">
-            <button
-                className="p-[0.625rem] ml-[-12px] bg-white rounded-full"
-                onClick={() => navigateTo(-1)}
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M11.6666 5.8335L8.33329 10.0002L11.6666 14.1668" stroke="#28303F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-            </button>
-            <h2 className='mt-5 text-[1.5rem] font-semibold leading-8 text-[#202939]'>Verify your email</h2>
-            <p className="text-sm leading-5 mt-3 text-[#202939]">
-                Check your inbox for your verification code. If you can&apos;t find it, check your spam/junk folder.
-            </p>
-            <form
-                className="mt-8"
-                onSubmit={(e) => {
-                    e.preventDefault()
-                    navigateTo('/email_verified')
-                }}
-            >
-                <div className="flex space-x-2 items-center justify-center px-8">
-                    {otp.map((digit, index) => (
-                        <input
-                            key={index}
-                            ref={(el) => (inputRefs.current[index] = el)}
-                            className="bg-[#ffffff] text-[#364152] placeholder:text-[#CDD5DF] w-full rounded-[3rem] border-[0.5px] border-[#CDD5DF] py-4 px-2 text-center text-[2.25rem] outline-[1px] outline-[#D6BBFB]"
-                            type="tel"
-                            maxLength={1}
-                            value={digit}
-                            required
-                            placeholder={`${index + 1}`}
-                            onChange={(e) => handleOtpChange(index, e.target.value)}
-                        />
-                    ))}
+        <div className="flex flex-col items-center justify-between flex-grow p-[1.25rem] pb-12">
+            <div className="flex-1"></div>
+            <div className="flex-1 verified_background">
+                <div className='flex items-center justify-center'>
+                    <img src="/mailsent.svg" alt="Email Sent" />
                 </div>
-                <p className="text-sm leading-5 text-[#667085] text-center mt-6">
-                    {`Didn't receive code? `}
-                    <button
-                        className="text-[#9E77ED] font-medium"
-                        type="button"
-                    >
-                        Resend
-                    </button>
+                <h2 className='text-[1.5rem] mt-12 text-center font-semibold leading-8 text-[#202939]'>
+                    Verify Your Email Address
+                </h2>
+                <p className="text-sm mt-4 text-[#202939] text-center max-w-xs">
+                    Please check your email and click on the link provided to verify your email address.
                 </p>
-                <button type="submit" className="mt-[6rem] w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9]">
-                    Verify
+            </div>
+
+            {/* Bottom action buttons area */}
+            <div className="mt-auto w-full flex-1 flex flex-col justify-end items-center gap-3 max-w-xs mx-auto">
+                <button
+                    onClick={handleResendVerificationEmail}
+                    disabled={loading}
+                    className="text-[#697586] font-medium leading-6 w-full py-3"
+                >
+                    {loading ? <MiniLoader color="#FFFFFF" /> : "Resend Verification Email"}
                 </button>
-            </form>
+                <button
+                    onClick={() => navigateTo("/login")}
+                    className="w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9] flex items-center justify-center"
+                >
+                    Continue
+                </button>
+            </div>
         </div>
     )
 }

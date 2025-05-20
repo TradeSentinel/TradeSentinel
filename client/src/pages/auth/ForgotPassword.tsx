@@ -1,18 +1,52 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom'
-
+import { auth } from '../../utils/firebaseInit';
+import { sendPasswordResetEmail, ActionCodeSettings } from 'firebase/auth';
+import { toast } from 'react-toastify';
+import MiniLoader from '../../components/MiniLoader';
 
 export default function ForgotPassword() {
 
     const navigateTo = useNavigate();
     const [email, setEmail] = useState('')
+    const [loading, setLoading] = useState(false);
+
+    const actionCodeSettings: ActionCodeSettings = {
+        url: import.meta.env.VITE_PASSWORD_RESET_CONTINUE_URL || 'http://localhost:5173/password_changed',
+        handleCodeInApp: true,
+    };
+
+    const handlePasswordReset = async () => {
+        if (!email) {
+            toast.error("Please enter your email address.");
+            return;
+        }
+        setLoading(true);
+        try {
+            await sendPasswordResetEmail(auth, email, actionCodeSettings);
+            toast.success("Password reset email sent! Please check your inbox.", {
+                position: "top-right",
+                autoClose: 3000,
+                theme: "light",
+            });
+            navigateTo('/reset_email_sent'); // Path from App.tsx
+        } catch (error: any) {
+            console.error("Password Reset Error:", error);
+            if (error.code === 'auth/user-not-found') {
+                toast.error("No user found with this email address.");
+            } else {
+                toast.error(`Error: ${error.message}`);
+            }
+        }
+        setLoading(false);
+    };
 
     return (
         <form
             className='flex flex-col flex-grow p-[1.25rem] pb-12'
             onSubmit={(e) => {
                 e.preventDefault()
-                navigateTo('/reset_email_sent')
+                handlePasswordReset();
             }}
         >
             <div>
@@ -43,9 +77,11 @@ export default function ForgotPassword() {
             </div>
             <div className='mt-auto flex flex-col gap-8'>
                 <button
-                    className="w-full font-medium px-[18px] py-[0.625rem] text-white bg-[#7F56D9] rounded-full"
+                    type="submit"
+                    disabled={loading}
+                    className="w-full font-medium px-[18px] py-[0.625rem] text-white bg-[#7F56D9] rounded-full flex items-center justify-center"
                 >
-                    Reset password
+                    {loading ? <MiniLoader color="#FFFFFF" /> : "Reset password"}
                 </button>
                 <p className="text-[#667085] text-center text-sm leading-5 mt-7">
                     Remember password? <Link to='/login' className="text-[#9E77ED] font-medium">Log In</Link>
