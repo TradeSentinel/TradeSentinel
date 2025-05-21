@@ -1,0 +1,19 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "server for trade sentinel",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TradeSentinel/TradeSentinel.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TradeSentinel/TradeSentinel/issues"
+  },
+  "homepage": "https://github.com/TradeSentinel/TradeSentinel#readme"
+}
