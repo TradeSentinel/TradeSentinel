@@ -2,8 +2,11 @@
   "name": "server",
   "version": "1.0.0",
   "description": "server for trade sentinel",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon src/index.ts",
     "test": "npm test"
   },
   "repository": {
@@ -15,5 +18,17 @@
   "bugs": {
     "url": "https://github.com/TradeSentinel/TradeSentinel/issues"
   },
-  "homepage": "https://github.com/TradeSentinel/TradeSentinel#readme"
+  "homepage": "https://github.com/TradeSentinel/TradeSentinel#readme",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "firebase-admin": "^13.4.0",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/ws": "^8.18.1",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
 }
