@@ -95,7 +95,7 @@ export default function Homepage() {
         const fetchActiveAlerts = async () => {
             const qActive = query(
                 alertsCollectionRef,
-                where("status", "==", "active"),
+                where("status", "in", ["active", "paused"]),
                 orderBy("createdAt", "desc"),
                 limit(10)
             );
@@ -113,7 +113,7 @@ export default function Homepage() {
         const fetchPreviousAlerts = async () => {
             const qPrevious = query(
                 alertsCollectionRef,
-                where("status", "in", ["triggered", "cancelled", "paused"]), // Define what counts as "previous"
+                where("status", "in", ["triggered", "cancelled"]),
                 orderBy("createdAt", "desc"),
                 limit(5)
             );

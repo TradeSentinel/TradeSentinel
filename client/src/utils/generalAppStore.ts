@@ -89,20 +89,22 @@ export const useGeneralAppStore = create<State & Actions>((set) => ({
       let newActive = [...state.alerts.active];
       let newPrevious = [...state.alerts.previous];
 
-      // Remove from both lists first
+      // Remove from both lists first to handle status changes between active/previous categories
       newActive = newActive.filter(a => a.id !== updatedAlert.id);
       newPrevious = newPrevious.filter(a => a.id !== updatedAlert.id);
 
       // Add to the correct list based on new status
-      if (newStatus === 'active') {
+      if (newStatus === 'active' || newStatus === 'paused') { // Paused alerts are now in the active list
         newActive.push(updatedAlert);
-        // Re-sort by createdAt if necessary, or rely on fetching for order
+        // Re-sort active list by createdAt (descending)
         newActive.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      } else if (['paused', 'triggered', 'cancelled'].includes(newStatus)) {
+      } else if (['triggered', 'cancelled'].includes(newStatus)) { // Previous list only for triggered/cancelled
         newPrevious.push(updatedAlert);
+        // Re-sort previous list by createdAt (descending)
         newPrevious.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       }
-      // Ensure limits are respected after update
+
+      // Ensure limits are respected after update - these might need adjustment based on typical numbers
       newActive = newActive.slice(0, 10);
       newPrevious = newPrevious.slice(0, 5);
 

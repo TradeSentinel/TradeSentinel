@@ -65,6 +65,7 @@ export default function AlertInfoToShow() {
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
     const statusColor = currentAlert?.status === 'active' ? 'text-[#008D25]' : currentAlert?.status === 'paused' ? 'text-[#F79009]' : 'text-[#AD183F]';
+    const isTerminalStatus = currentAlert?.status === "triggered" || currentAlert?.status === "cancelled";
 
     const handleDelete = async () => {
         if (!currentAlert || !currentAlert.id || !currentUser) {
@@ -142,12 +143,14 @@ export default function AlertInfoToShow() {
                             <div className="bg-[#111322] p-[2px] flex items-center rounded-full w-full flex-grow">
                                 <button
                                     onClick={handleTogglePausePlay}
-                                    disabled={isLoading}
-                                    className="bg-white p-3 w-full rounded-full flex items-center justify-center gap-1 disabled:opacity-50"
+                                    disabled={isLoading || isTerminalStatus}
+                                    className="bg-white p-3 w-full rounded-full flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {currentAlert?.status === "active" ? <PauseIcon /> : <PlayIcon />}
                                     <p className="text-sm leading-5 text-[#202939]">
-                                        {currentAlert?.status === "active" ? "Pause" : "Play"}
+                                        {currentAlert?.status === "active" ? "Pause" :
+                                            currentAlert?.status === "paused" ? "Play" :
+                                                (currentAlert?.status ? currentAlert.status.charAt(0).toUpperCase() + currentAlert.status.slice(1) : "N/A")}
                                     </p>
                                 </button>
                             </div>

@@ -37,8 +37,8 @@ This document tracks the development progress of the Trade Sentinel PWA.
   - [x] Navigation for todo items (`/account` for avatar, `/setup_pwa` for PWA).
   - [x] Update Firestore when PWA todo is actioned.
 - [ ] Avatar Setup & Management
-  - [ ] Placeholder: UI on `/account` page for avatar selection/upload.
-  - [ ] Placeholder: Logic to update `avatarUrl` or `hasSetAvatar` in Firestore.
+  - [ ] UI on `/account` page for avatar selection/upload.
+  - [ ] Logic to update `avatarUrl` or `hasSetAvatar` in Firestore.
   - [ ] Display chosen avatar on Homepage and Account page.
 - [ ] PWA Installation Guidance
   - [x] Create `SetupPWA.tsx` placeholder page.
@@ -46,41 +46,56 @@ This document tracks the development progress of the Trade Sentinel PWA.
 
 ### 3. Alert System
 - [x] Alert Data Structure Refined (Zustand & Firestore)
-  - [x] `notificationPreferences` object instead of string.
+  - [x] `notificationPreferences` object (`email`, `push` booleans).
   - [x] Defined statuses (active, triggered, cancelled, paused).
   - [x] `createdAt` timestamp.
-- [x] Alert Data Management (Firestore)
-  - [x] Fetch active alerts (status="active", limit 10, ordered) for the current user.
-  - [x] Fetch previous alerts (status in ["triggered", "cancelled", "paused"], limit 5, ordered) for the current user.
+- [x] Alert Data Management (Firestore & Zustand)
+  - [x] Fetch active alerts (status="active" or "paused", limit 10, ordered) for the current user.
+  - [x] Fetch previous alerts (status in ["triggered", "cancelled"], limit 5, ordered) for the current user.
   - [x] Update Zustand store with fetched alerts.
   - [x] Firestore indexes created for queries.
+  - [x] "Paused" alerts are treated as active and displayed in the "Active Alerts" list with a badge.
 - [x] Create New Alert (`CreateAlert.tsx`)
   - [x] UI for creating alerts.
   - [x] Save new alert configurations to Firestore under `/users/{userId}/alerts`.
   - [x] Use `serverTimestamp()` for `createdAt`.
   - [x] Set default status to "active".
-  - [x] Validate input fields.
-  - [x] Reset form/global state after successful creation.
-- [ ] Display Alerts (`Alerts.tsx` & `Homepage.tsx`)
+  - [x] Validate input fields (all fields filled, at least one notification type selected).
+  - [x] Reset form/global state after successful creation and on unmount.
+- [x] Display Alerts (`Alerts.tsx`, `ActiveAlerts.tsx`, `PreviousAlerts.tsx`, `Homepage.tsx`)
   - [x] Homepage shows `CreateFirstAlert` component (with updated SVG) if no active/previous alerts for the user.
-  - [ ] Placeholder: `Alerts.tsx` to render lists of active and previous alerts (needs implementation).
-- [ ] Edit Alert
-  - [x] UI for editing alerts (`EditAlert.tsx` - currently a copy of CreateAlert).
-  - [ ] Placeholder: Load existing alert data into the form.
-  - [ ] Placeholder: Update alert configurations in Firestore.
-- [ ] Delete Alert
-  - [ ] Functionality to delete alerts from Firestore.
-- [ ] Alert Status Management (Active, Paused, Triggered)
-  - [ ] UI to change alert status.
-  - [ ] Update alert status in Firestore.
+  - [x] `ActiveAlerts.tsx` displays active/paused alerts, with a "Paused" badge if applicable. Shows "No active alerts found." message when empty.
+  - [x] `PreviousAlerts.tsx` displays triggered/cancelled alerts. Shows "No previous alerts found." message when empty.
+  - [x] `Alerts.tsx` component renders `ActiveAlerts` and `PreviousAlerts` in respective tabs.
+- [x] Alert Modal (`AlertInfoToShow.tsx`)
+  - [x] Display detailed alert information (status, pair, type, trigger price, createdAt, notification preferences).
+  - [x] Functional "Delete" button with confirmation dialog (styled to match app design).
+  - [x] Functional "Pause/Play" button to toggle status (active <-> paused); disabled for "triggered" or "cancelled" statuses.
+  - [x] Functional "Edit" button navigating to `/edit_alert/:alertId`.
+  - [x] Handles loading states for actions.
+- [x] Edit Alert (`EditAlert.tsx`)
+  - [x] Route `/edit_alert/:alertId` defined and protected.
+  - [x] Fetch specific alert data from Firestore and populate form.
+  - [x] Update alert configurations in Firestore.
+  - [x] Update alert in Zustand store.
+  - [x] Handle notification preferences.
+  - [x] PageLoader shown during initial data fetch.
+  - [x] Reset global alert state on unmount.
+- [ ] Alert Triggering Logic (Backend)
+  - [ ] **Next:** Backend service/Cloud Function to monitor currency prices against active alerts.
+  - [ ] When an alert's condition is met:
+    - [ ] Update alert `status` to "triggered" in Firestore.
+    - [ ] Initiate notifications (email/push).
 
-### 4. Real-time Data & Alert Triggering
-- [ ] Xchange API Integration
-  - [ ] Implement API calls to fetch real-time currency pair data.
-  - [ ] Securely manage API keys/credentials.
-- [ ] Alert Triggering Logic
-  - [ ] Backend or client-side mechanism to monitor price data against active alerts.
-  - [ ] Update alert status to "triggered" in Firestore.
+### 4. Real-time Data Integration (XChange API & WebSockets)
+- [ ] **Next:** Integrate XChange API for Currency Pair Data
+  - [ ] Fetch list of available currency pairs for selection in `CreateAlert`/`EditAlert`.
+  - [ ] Potentially use for validating currency pairs.
+- [ ] **Next:** Implement WebSocket Connection for Real-time Price Updates
+  - [ ] Establish WebSocket connection to XChange for subscribed currency pairs (pairs present in active alerts).
+  - [ ] Update UI elements (e.g., `TopPairs.tsx`, potentially live price on alert details) with real-time data.
+  - [ ] This real-time data will feed into the backend alert triggering logic.
+- [ ] Securely manage API keys/credentials (likely via backend or environment variables for build).
 
 ### 5. Notifications
 - [x] Firebase Cloud Messaging (FCM) Setup
@@ -88,8 +103,8 @@ This document tracks the development progress of the Trade Sentinel PWA.
   - [x] Request notification permission (`requestPermission.ts`).
   - [x] Get FCM token.
 - [ ] Send Notifications for Triggered Alerts
-  - [ ] Backend function (e.g., Firebase Cloud Function) to send push notifications via FCM when an alert is triggered.
-  - [ ] Logic to send email notifications if selected by the user.
+  - [ ] **Next:** Backend function (e.g., Firebase Cloud Function) to send push notifications via FCM when an alert is triggered (status changes to "triggered").
+  - [ ] **Next:** Logic to send email notifications if selected by the user when an alert is triggered.
 
 ### 6. General Application Structure & UX
 - [x] Global State Management (Zustand)
@@ -101,12 +116,12 @@ This document tracks the development progress of the Trade Sentinel PWA.
 - [x] PWA Configuration (`vite.config.ts`)
   - [x] Basic manifest file (`sentinel_logo.png` as icon).
   - [x] Basic service worker setup for caching.
-- [ ] Error Handling
+- [x] Error Handling
   - [x] Basic `ErrorPage.tsx` for routing errors.
-  - [x] More specific error handling for API calls and Firestore operations.
-- [ ] UI/UX Refinements
+  - [x] More specific error handling for API calls and Firestore operations (ongoing).
+- [x] UI/UX Refinements
   - [x] Consistent styling and component usage.
-  - [x] Accessibility improvements.
+  - [x] Accessibility improvements (ongoing).
   - [x] Updated `CreateFirstAlert` UI in Homepage.
 
 ## Future Enhancements (Post-MVP)
@@ -118,4 +133,5 @@ This document tracks the development progress of the Trade Sentinel PWA.
 - [ ] Dark mode.
 
 --------------------
-*Marked with [x] = Done/Mostly Done. Blank = To Do.* 
+*Marked with [x] = Done/Mostly Done. Blank = To Do.*
+*Marked with **Next:** = Immediate next steps.* 

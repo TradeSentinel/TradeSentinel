@@ -24,8 +24,7 @@ export default function ActiveAlerts() {
     return (
         <div className="mt-3 flex flex-col">
             {alerts.map((alert, index) => {
-                const alertNumber = index + 1
-                const isLastNumber = alertNumber === alerts.length ? true : false
+                const isLastNumber = index === alerts.length - 1;
 
                 return (
                     <div
@@ -33,11 +32,20 @@ export default function ActiveAlerts() {
                         key={alert.id || index}
                         className={`${isLastNumber ? '' : 'border-b-[1px] border-b-[#E3E8EF]'} flex flex-col w-full py-2 cursor-pointer hover:bg-gray-50 transition-colors`}
                     >
-                        <div className="flex items-center gap-1 text-[#121926] text-sm leading-5">
-                            <p>{alert.currencyPair}</p>
-                            <i className="mx-[-4px]"><LuDot /></i>
-                            <p>{alert.alertType}</p>
-                            <p>{alert.triggerPrice}</p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-[#121926] text-sm leading-5">
+                                <p>{alert.currencyPair}</p>
+                                <i className="mx-[-4px]"><LuDot /></i>
+                                <p>{alert.alertType}</p>
+                                <p>{alert.triggerPrice}</p>
+                            </div>
+                            {alert.status === 'paused' && (
+                                <span
+                                    className={`text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700`}
+                                >
+                                    Paused
+                                </span>
+                            )}
                         </div>
                         <p className="text-xs text-[#697586]">{formatFirestoreTimestamp(alert.createdAt)}</p>
                     </div>
