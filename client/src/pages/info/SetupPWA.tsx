@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/homeComponents/PageHeader';
-import { auth, db } from '../../utils/firebaseInit';
+import { db } from '../../utils/firebaseInit';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useGeneralAppStore } from '../../utils/generalAppStore';
 

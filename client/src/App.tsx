@@ -13,7 +13,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./utils/firebaseInit";
 import { doc, getDoc } from "firebase/firestore";
 import { useGeneralAppStore } from "./utils/generalAppStore";
-import { initializeFcmAndRegisterToken } from "./utils/fcmTokenRegistration";
+// import { initializeFcmAndRegisterToken } from "./utils/fcmTokenRegistration";
 
 // Lazy-loaded components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -272,10 +272,11 @@ const App: React.FC = () => {
 
             updatePwaPromptDismissed(!!userData.pwaPromptDismissed);
 
-            if (userData.notificationsEnabled !== false) {
-              initializeFcmAndRegisterToken()
-                .catch(error => console.error('Error initializing FCM:', error));
-            }
+            // Only check the flag, don't automatically request permissions
+            // if (userData.notificationsEnabled !== false) {
+            //   initializeFcmAndRegisterToken()
+            //     .catch(error => console.error('Error initializing FCM:', error));
+            // }
           } else {
             updateUserProfileName(null);
             updateHasSetAvatar(false);

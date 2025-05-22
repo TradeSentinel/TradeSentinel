@@ -114,7 +114,7 @@ export const registerFcmToken = async (): Promise<boolean> => {
         const message = {
             type: 'register_token',
             userId: user.uid,
-            token: fcmToken
+            fcmToken: fcmToken
         };
 
         ws.send(JSON.stringify(message));

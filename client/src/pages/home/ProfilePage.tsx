@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/homeComponents/PageHeader';
 import { useGeneralAppStore } from '../../utils/generalAppStore';
-import { auth, db } from '../../utils/firebaseInit';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../utils/firebaseInit';
+import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import MiniLoader from '../../components/MiniLoader';
 import { GreenCheckMark, Pencil, User } from '../../components/Icons';
 import AvatarSelectionModal from '../../components/AvatarSelectionModal';
 
 const ProfilePage: React.FC = () => {
-    const [loading, setLoading] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
-    const [userData, setUserData] = useState<any>(null);
+    // const [userData, setUserData] = useState<any>(null);
     const [formData, setFormData] = useState({
         fullName: ''
     });
@@ -21,7 +20,6 @@ const ProfilePage: React.FC = () => {
 
     const currentUser = useGeneralAppStore((state) => state.currentUser);
     const userProfileName = useGeneralAppStore((state) => state.userProfileName);
-    const hasSetAvatar = useGeneralAppStore((state) => state.hasSetAvatar);
     const avatarId = useGeneralAppStore((state) => state.avatarId);
     const updateHasSetAvatar = useGeneralAppStore((state) => state.updateHasSetAvatar);
     const updateAvatarId = useGeneralAppStore((state) => state.updateAvatarId);
@@ -38,26 +36,26 @@ const ProfilePage: React.FC = () => {
         setSelectedAvatarId(avatarId);
     }, [userProfileName, currentUser, avatarId]);
 
-    // Fetch any additional user data on component mount (if needed)
-    useEffect(() => {
-        const fetchUserData = async () => {
-            if (!currentUser) return;
+    // // Fetch any additional user data on component mount (if needed)
+    // useEffect(() => {
+    //     const fetchUserData = async () => {
+    //         if (!currentUser) return;
 
-            try {
-                const userDocRef = doc(db, "users", currentUser.uid);
-                const userSnapshot = await getDoc(userDocRef);
+    //         try {
+    //             // const userDocRef = doc(db, "users", currentUser.uid);
+    //             // const userSnapshot = await getDoc(userDocRef);
 
-                if (userSnapshot.exists()) {
-                    const data = userSnapshot.data();
-                    setUserData(data);
-                }
-            } catch (error) {
-                console.error("Error fetching user data:", error);
-            }
-        };
+    //             // if (userSnapshot.exists()) {
+    //             //     const data = userSnapshot.data();
+    //             //     // setUserData(data);
+    //             // }
+    //         } catch (error) {
+    //             console.error("Error fetching user data:", error);
+    //         }
+    //     };
 
-        fetchUserData();
-    }, [currentUser]);
+    //     fetchUserData();
+    // }, [currentUser]);
 
     // Handle input change
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,11 +157,6 @@ const ProfilePage: React.FC = () => {
 
     return (
         <>
-            {loading && (
-                <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-                    <MiniLoader />
-                </div>
-            )}
             <div className={`overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${showAvatarModal ? 'blur-sm' : ''}`}>
                 <PageHeader name="Profile" />
 

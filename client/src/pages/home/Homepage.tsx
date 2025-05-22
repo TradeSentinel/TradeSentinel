@@ -1,5 +1,5 @@
 import { FaChevronRight, FaCheck } from "react-icons/fa6";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import HomeBottomNavbar from "../../components/homeComponents/HomeBottomNavbar";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 import Alerts from "../../components/homeComponents/Alerts";
@@ -7,7 +7,7 @@ import AlertInfoToShow from "../../components/homeComponents/AlertInfoToShow";
 import TopPairs from "../../components/homeComponents/TopPairs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../utils/firebaseInit";
-import { collection, doc, updateDoc, setDoc, query, where, orderBy, limit, getDocs, Timestamp, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { Clock, Person } from "../../components/Icons";
 import { toast } from 'react-toastify';
 
@@ -45,10 +45,6 @@ export default function Homepage() {
     }));
 
     const {
-        updateUser,
-        updateUserProfileName,
-        updateHasSetAvatar,
-        updatePwaPromptDismissed,
         updateActiveAlerts,
         updatePreviousAlerts,
         updateShowAlertInfo

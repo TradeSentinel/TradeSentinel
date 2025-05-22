@@ -6,7 +6,7 @@ import AlertType from "../../components/homeComponents/AlertType";
 import { toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
-import { auth, db } from "../../utils/firebaseInit";
+import { db } from "../../utils/firebaseInit";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { LivePrice, WsParams, WsStatus } from "../../types/websocket"; // Import types
 
