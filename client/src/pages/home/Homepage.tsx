@@ -57,25 +57,7 @@ export default function Homepage() {
     const userName = userProfileName || currentUser?.displayName || currentUser?.email?.split('@')[0] || "User";
     const allTodosCompleted = hasSetAvatar && pwaPromptDismissed;
 
-    const handlePwaTodoClick = async () => {
-        if (currentUser) {
-            const userDocRef = doc(db, "users", currentUser.uid);
-            try {
-                await updateDoc(userDocRef, { pwaPromptDismissed: true });
-                updatePwaPromptDismissed(true);
-            } catch (error: any) {
-                if (error.code === 'not-found') {
-                    try {
-                        await setDoc(userDocRef, { pwaPromptDismissed: true }, { merge: true });
-                        updatePwaPromptDismissed(true);
-                    } catch (setErr) {
-                        console.error("Error creating user document for PWA dismissal:", setErr);
-                    }
-                } else {
-                    console.error("Error updating pwaPromptDismissed in Firestore:", error);
-                }
-            }
-        }
+    const handlePwaTodoClick = () => {
         navigateTo("/setup_pwa");
     };
 

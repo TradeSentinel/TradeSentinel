@@ -67,8 +67,21 @@ export default function Account() {
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
                             <Bell />
                         </div>
-                        <div className="flex flex-grow items-center justify-between py-4">
+                        <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
                             <p className="text-xs font-semibold text-[#121926]">Notifications</p>
+                            <Caret />
+                        </div>
+                    </div>
+                    <div onClick={() => navigateTo("/setup_pwa")} role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
+                        <div className="p-2 rounded-full bg-[#F8FAFC]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="black" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </div>
+                        <div className="flex flex-grow items-center justify-between py-4">
+                            <p className="text-xs font-semibold text-[#121926]">Add to Home Screen</p>
                             <Caret />
                         </div>
                     </div>
