@@ -494,7 +494,7 @@ async function sendFcmNotification(alert: Alert, priceUpdate: { ask: string, bid
         webpush: {
             notification: { // This is what's specifically shown to the user by the browser for Web Push
                 title: `${alert.currencyPair}`,
-                body: `Price ${alert.alertType} ${alert.triggerPrice}. Current Ask: ${priceUpdate.ask}, Bid: ${priceUpdate.bid}`,
+                body: `${alert.alertType} ${alert.triggerPrice}. Current Ask: ${priceUpdate.ask}, Bid: ${priceUpdate.bid}`,
                 icon: '/sentinel_logo.png',
                 // 'data' within webpush.notification is specifically for the service worker when it constructs the notification
                 // or handles a click on a displayed notification.
