@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = require("ws");
 const dotenv_1 = __importDefault(require("dotenv"));
 const admin = __importStar(require("firebase-admin"));
+const nodemailer_1 = __importDefault(require("nodemailer")); // Added nodemailer import
 const xchangeService_1 = require("./xchangeService"); // Import XChangeService
 const path_1 = __importDefault(require("path")); // Import path module
 const fs_1 = __importDefault(require("fs")); // Import fs module
@@ -91,6 +92,24 @@ else {
 }
 const PORT = process.env.PORT || 8080;
 const XCHANGE_API_KEY = process.env.XCHANGE_API_KEY;
+// Nodemailer Transporter Setup
+const mailTransporter = nodemailer_1.default.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || "465", 10),
+    secure: parseInt(process.env.SMTP_PORT || "465", 10) === 465, // true for 465, false for other ports
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+});
+mailTransporter.verify((error, success) => {
+    if (error) {
+        console.error('[Nodemailer] Error verifying SMTP connection:', error);
+    }
+    else {
+        console.log('[Nodemailer] SMTP Connection verified. Server is ready to take messages.');
+    }
+});
 const wss = new ws_1.WebSocketServer({ port: Number(PORT) });
 wss.on('listening', () => {
     console.log(`Trade Sentinel WebSocket server started on port ${PORT}`);
@@ -318,9 +337,16 @@ async function handleTriggeredAlert(alert, priceUpdate) {
             }
         }
         if (alert.notificationPreferences?.email) {
-            // Placeholder for email notification logic
-            console.log(`[handleTriggeredAlert] Would send email notification to user ${alert.userId}`);
-            // await sendEmailNotification(alert, priceUpdate);
+            // Fetch user's email to send the notification
+            const userDoc = await db.collection('users').doc(alert.userId).get();
+            if (userDoc.exists && userDoc.data()?.email) {
+                const userEmail = userDoc.data()?.email;
+                console.log(`[handleTriggeredAlert] Attempting to send email notification to ${userEmail} for user ${alert.userId}`);
+                await sendEmailNotification(alert, priceUpdate, userEmail);
+            }
+            else {
+                console.error(`[handleTriggeredAlert] Could not find email for user ${alert.userId} to send email notification.`);
+            }
         }
         // No longer needed here, as the main list is updated by manageAlertSubscriptions after Firestore change
         // And priceUpdate handler manages the immediate de-duplication with processingAlertIds
@@ -433,7 +459,7 @@ async function sendFcmNotification(alert, priceUpdate) {
         },
         webpush: {
             notification: {
-                title: `Trade Sentinel Alert: ${alert.currencyPair}`,
+                title: `${alert.currencyPair}`,
                 body: `Price ${alert.alertType} ${alert.triggerPrice}. Current Ask: ${priceUpdate.ask}, Bid: ${priceUpdate.bid}`,
                 icon: '/sentinel_logo.png',
                 // 'data' within webpush.notification is specifically for the service worker when it constructs the notification
@@ -475,6 +501,54 @@ async function sendFcmNotification(alert, priceUpdate) {
     catch (error) {
         console.error(`[sendFcmNotification] Error sending FCM notification for alert ${alert.id} to user ${alert.userId}:`, error);
         return false;
+    }
+}
+/**
+ * Send Email notification for a triggered alert
+ */
+async function sendEmailNotification(alert, priceUpdate, userEmail) {
+    console.log(`[sendEmailNotification DEBUG] ENTER for Alert ID: ${alert.id}, User: ${alert.userId}, Email: ${userEmail}`);
+    const subject = `Trade Sentinel Alert: ${alert.currencyPair} Triggered!`;
+    const textBody = `
+Hello,
+
+Your alert for ${alert.currencyPair} has been triggered.
+Condition: ${alert.alertType} ${alert.triggerPrice}
+Current Ask Price: ${priceUpdate.ask}
+Current Bid Price: ${priceUpdate.bid}
+Triggered At: ${new Date(priceUpdate.timestamp * 1000).toUTCString()}
+
+You can view your alerts here: ${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard?alertId=${alert.id}
+
+Regards,
+The Trade Sentinel Team
+    `;
+    const htmlBody = `
+<p>Hello,</p>
+<p>Your alert for <strong>${alert.currencyPair}</strong> has been triggered.</p>
+<ul>
+    <li><strong>Condition:</strong> ${alert.alertType} ${alert.triggerPrice}</li>
+    <li><strong>Current Ask Price:</strong> ${priceUpdate.ask}</li>
+    <li><strong>Current Bid Price:</strong> ${priceUpdate.bid}</li>
+    <li><strong>Triggered At:</strong> ${new Date(priceUpdate.timestamp * 1000).toUTCString()}</li>
+</ul>
+<p>You can view your alerts <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard?alertId=${alert.id}">here</a>.</p>
+<p>Regards,<br/>The Trade Sentinel Team</p>
+    `;
+    const mailOptions = {
+        from: process.env.SMTP_FROM_EMAIL || `"Trade Sentinel Alerts" <alert@tradesentinel.xyz>`,
+        to: userEmail,
+        subject: subject,
+        text: textBody,
+        html: htmlBody,
+    };
+    try {
+        const info = await mailTransporter.sendMail(mailOptions);
+        console.log(`[sendEmailNotification] Email sent successfully to ${userEmail} for alert ${alert.id}. Message ID: ${info.messageId}`);
+    }
+    catch (error) {
+        console.error(`[sendEmailNotification] Error sending email to ${userEmail} for alert ${alert.id}:`, error);
+        // Optionally, you might want to implement a retry mechanism or log this to a more persistent error tracking service
     }
 }
 /**
