@@ -1,34 +1,45 @@
 import React from 'react';
 import PageHeader from '../../components/homeComponents/PageHeader';
 import { requestNotificationPermission } from "../../utils/requestPermission";
+import { useNavigate } from 'react-router-dom';
 
 const NotificationsPage: React.FC = () => {
+
+    const navigateTo = useNavigate();
+    const goBack = () => navigateTo(-1);
+
     return (
-        <div className="overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full">
+        <div className="overflow-scroll dynamicHeight flex flex-col justify-between flex-grow p-[1.25rem] pb-12 w-full">
             <PageHeader name="Notifications" />
-            <div className="flex-grow mt-8">
-                {/* Notification Settings Section will be moved here */}
-                <div className="bg-white mt-8 p-3 flex flex-col gap-[6px] rounded-3xl">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                            </svg>
-                        </div>
-                        <div className="flex flex-grow items-center justify-between py-4">
-                            <p className="text-xs font-semibold text-[#121926]">Notification Settings</p>
-                            {/* <Caret /> */}
-                        </div>
+            <div className="flex-grow mt-8 flex flex-col items-center">
+                <div className="flex-1"></div>
+                <div className="flex-1 verified_background">
+                    <div className='flex items-center justify-center'>
+                        <img src="/bell.svg" alt="Notification bell" />
                     </div>
+                    <h2 className='text-[1.5rem] mt-12 text-center font-semibold leading-8 text-[#202939]'>
+                        Setup Push Notifications
+                    </h2>
+                    <p className="text-sm mt-4 text-[#202939] text-center mt-">To get Push Notifications, you need to give permission to receive them.</p>
+                </div>
+                {/* Bottom action buttons area */}
+
+                <div className="mt-auto w-full flex-1 flex flex-col justify-end items-center gap-3 max-w-xs mx-auto">
+                    <button
+                        onClick={goBack}
+                        className="text-[#697586] font-medium leading-6 w-full py-3"
+                    >
+                        No, thanks
+                    </button>
                     <button
                         onClick={requestNotificationPermission}
-                        className="w-full mt-2 bg-[#7F56D9] hover:bg-[#6941C6] text-white font-medium py-2 px-4 rounded-lg text-sm"
+                        className="w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9] flex items-center justify-center"
                     >
                         Enable Push Notifications
                     </button>
                 </div>
             </div>
+
         </div>
     );
 };

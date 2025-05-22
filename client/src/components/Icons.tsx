@@ -117,3 +117,26 @@ export function CheckIcon() {
         </svg>
     )
 }
+
+export function TwitterLogo() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <g clip-path="url(#clip0_423_11027)">
+                <path d="M7.60576 0.8125H8.99065L5.96576 4.29294L9.53731 9.0125H6.73109L4.54442 6.15161L2.02976 9.0125H0.644869L3.88842 5.29517L0.462646 0.8125H3.34176L5.32798 3.4365L7.60576 0.8125ZM7.11376 8.17428H7.87909L2.92265 1.59606H2.08442L7.11376 8.17428Z" fill="white" />
+            </g>
+            <defs>
+                <clipPath id="clip0_423_11027">
+                    <rect width="9.07467" height="8.2" fill="white" transform="translate(0.462646 0.8125)" />
+                </clipPath>
+            </defs>
+        </svg>
+    )
+}
+
+export function EmailIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M0.0447907 2.13934L4.04394 5.04789C4.61374 5.4623 5.38624 5.4623 5.95604 5.04789L9.95521 2.13933C9.75172 1.15389 8.87904 0.413086 7.83333 0.413086H2.16667C1.12095 0.413086 0.248268 1.1539 0.0447907 2.13934ZM10 3.44678L6.59276 5.92485C5.7025 6.5721 4.51606 6.6124 3.58886 6.04594L3.40722 5.92485L0 3.4468L0 7.24642C0 8.44304 0.97005 9.41309 2.16667 9.41309H7.83333C9.02995 9.41309 10 8.44304 10 7.24642V3.44678Z" fill="white" />
+        </svg>
+    )
+}
