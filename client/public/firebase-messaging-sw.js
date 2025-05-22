@@ -31,10 +31,12 @@ messaging.onBackgroundMessage((payload) => {
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: '/sentinel_logo.png' // Ensure you have this icon in your public folder
+        icon: '/sentinel_logo.png'
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    // TEMPORARILY COMMENT OUT showNotification
+    // self.registration.showNotification(notificationTitle, notificationOptions);
+    console.log('[firebase-messaging-sw.js] showNotification SKIPPED for this test.');
 });
 
 // If you want to handle notification clicks, you can add a listener for it:
