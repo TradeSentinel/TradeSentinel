@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageHeader from "../../components/homeComponents/PageHeader";
 import MiniLoader from "../../components/MiniLoader";
 import CurrencyPairs from "../../components/homeComponents/CurrencyPairs";
@@ -9,6 +9,7 @@ import { useGeneralAppStore, generalAlertType } from "../../utils/generalAppStor
 import { db } from "../../utils/firebaseInit";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import PageLoader from "../../components/PageLoader";
+import { LivePrice, WsParams, WsStatus } from "../../types/websocket"; // Import types
 
 export default function EditAlert() {
     const navigateTo = useNavigate();
@@ -29,6 +30,12 @@ export default function EditAlert() {
     const updateAlertInLists = useGeneralAppStore(state => state.updateAlertInLists);
     const currentInfo = useGeneralAppStore(state => state.currentInfo);
 
+    // WebSocket related state
+    const [wsInstance, setWsInstance] = useState<WebSocket | null>(null);
+    const [livePrice, setLivePrice] = useState<LivePrice>({ ask: '', bid: '', timestamp: null });
+    const wsParamsRef = useRef<WsParams>({ mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null });
+    const [wsStatus, setWsStatus] = useState<WsStatus>('disconnected');
+
     useEffect(() => {
         if (!alertId || !currentUser) {
             toast.error("Alert ID or user information is missing.");
@@ -48,6 +55,8 @@ export default function EditAlert() {
                         ...alertData,
                         id: docSnap.id
                     });
+                    // Trigger WebSocket connection after alert data (including currencyPair) is loaded
+                    // The WebSocket useEffect below will pick up the currencyPair from newAlert
                 } else {
                     toast.error("Alert not found.");
                     navigateTo("/dashboard");
@@ -63,6 +72,7 @@ export default function EditAlert() {
         fetchAlert();
 
         return () => {
+            // Reset newAlert when the component unmounts
             updateNewAlert({
                 currencyPair: '',
                 triggerPrice: '',
@@ -82,6 +92,122 @@ export default function EditAlert() {
             [name]: value
         }));
     };
+
+    // Effect to manage WebSocket connection based on currencyPair (and after initial data fetch)
+    useEffect(() => {
+        if (!currencyPair || !import.meta.env.VITE_XCHANGE_API || isFetching) {
+            if (wsInstance) {
+                console.log('[EditAlert currencyPair useEffect] No pair/API key/still fetching, closing existing wsInstance:', wsInstance.url);
+                wsInstance.close();
+                setWsInstance(null);
+            }
+            setWsStatus('disconnected');
+            setLivePrice({ ask: '', bid: '', timestamp: null });
+            wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
+            return;
+        }
+
+        if (wsInstance) {
+            console.log('[EditAlert currencyPair useEffect] New pair. Closing old wsInstance:', wsInstance.url);
+            wsInstance.close();
+            setWsInstance(null);
+        }
+
+        console.log(`[EditAlert currencyPair useEffect] Initiating new WebSocket for ${currencyPair}`);
+        setWsStatus('connecting');
+        setLivePrice({ ask: '', bid: '', timestamp: null });
+        wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
+
+        const newSocket = new WebSocket(`wss://api.xchangeapi.com/websocket/live?api-key=${import.meta.env.VITE_XCHANGE_API}`);
+        let isCurrentSocket = true;
+
+        newSocket.onopen = () => {
+            if (!isCurrentSocket) return;
+            console.log(`[EditAlert newSocket.onopen] WebSocket connected for ${currencyPair}`);
+            setWsInstance(newSocket);
+            setWsStatus('connected');
+            const formattedPair = currencyPair.replace('/', '');
+            newSocket.send(JSON.stringify({ "pairs": [formattedPair] }));
+        };
+
+        newSocket.onmessage = (event) => {
+            if (!isCurrentSocket) return;
+            const message = event.data as string;
+            const messageCode = message.substring(0, 1);
+            const messageBody = message.substring(1);
+            try {
+                if (messageCode === '0') {
+                    const initialData = JSON.parse(messageBody);
+                    wsParamsRef.current = {
+                        mapping: initialData.mapping, order: initialData.order,
+                        startTime: initialData.start_time, timeMult: initialData.time_mult,
+                        sessionUID: initialData.session_uid
+                    };
+                    setWsStatus('subscribed');
+                    console.log('EditAlert WebSocket subscribed, params set (ref):', wsParamsRef.current);
+                } else if (messageCode === '1') {
+                    const currentWsParams = wsParamsRef.current;
+                    if (currentWsParams.order && currentWsParams.mapping && currentWsParams.startTime && currentWsParams.timeMult) {
+                        const parts = messageBody.split('|');
+                        const update: Record<string, string | number> = {};
+                        currentWsParams.order.forEach((key, index) => { update[key] = parts[index]; });
+                        const pairId = update.name as string;
+                        const pairName = currentWsParams.mapping[pairId];
+                        const formattedAppCurrencyPair = currencyPair.replace('/', '');
+                        if (pairName === formattedAppCurrencyPair) {
+                            const ask = update.ask as string;
+                            const bid = update.bid as string;
+                            const relativeTime = parseFloat(update.time as string);
+                            const fullTimestamp = currentWsParams.startTime + (relativeTime / currentWsParams.timeMult);
+                            setLivePrice({ ask, bid, timestamp: fullTimestamp });
+                        }
+                    }
+                } else if (messageCode === '7' || messageCode === '9') {
+                    const errorData = JSON.parse(messageBody);
+                    console.error('EditAlert WebSocket Error Message:', errorData);
+                    toast(`WebSocket Error: ${errorData.error}`, { type: "error" });
+                    setWsStatus('error');
+                }
+            } catch (e) {
+                console.error('Error processing WebSocket message (EditAlert):', e);
+            }
+        };
+
+        newSocket.onerror = (error) => {
+            if (!isCurrentSocket) return;
+            console.error(`[EditAlert newSocket.onerror] WebSocket error for ${currencyPair}:`, error);
+            toast('WebSocket connection error.', { type: "error" });
+            setWsStatus('error');
+        };
+
+        newSocket.onclose = (event) => {
+            if (!isCurrentSocket) return;
+            console.log(`[EditAlert newSocket.onclose] WebSocket disconnected for ${currencyPair}:`, event.reason);
+            setWsStatus('disconnected');
+        };
+
+        return () => {
+            console.log(`[EditAlert currencyPair useEffect Cleanup] for ${currencyPair}. Setting isCurrentSocket=false.`);
+            isCurrentSocket = false;
+            if (newSocket.readyState < WebSocket.CLOSING) {
+                console.log(`[EditAlert currencyPair useEffect Cleanup] Actively closing non-current newSocket for ${currencyPair}`);
+                newSocket.close();
+            }
+        };
+    }, [currencyPair, isFetching]); // isFetching ensures alert data is loaded
+
+    // Effect for cleaning up the wsInstance when it changes or component unmounts
+    useEffect(() => {
+        const currentWs = wsInstance;
+        return () => {
+            if (currentWs) {
+                console.log('[EditAlert wsInstance useEffect Cleanup] Closing WebSocket identified as currentWs:', currentWs.url);
+                currentWs.close();
+                setLivePrice({ ask: '', bid: '', timestamp: null });
+                wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
+            }
+        };
+    }, [wsInstance]);
 
     async function handleUpdateAlert() {
         if (!alertId || !currentUser) {
@@ -185,7 +311,49 @@ export default function EditAlert() {
                             />
                         </div>
                     </div>
-                    <div className="flex flex-col gap-[0.375rem]">
+                    {/* Display Live Price and WebSocket Status */}
+                    {currencyPair && (
+                        <div className="bg-white rounded-xl p-3 shadow-sm mt-3 flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm font-medium text-[#202939]">
+                                    Live: {currencyPair}
+                                </p>
+                                <span
+                                    className={`px-2 py-0.5 text-xs rounded-full font-medium 
+                                        ${wsStatus === 'subscribed' ? 'bg-green-100 text-green-700' :
+                                            wsStatus === 'connecting' || wsStatus === 'connected' ? 'bg-blue-100 text-blue-700' :
+                                                wsStatus === 'error' ? 'bg-red-100 text-red-700' :
+                                                    'bg-gray-100 text-gray-700'
+                                        }`}
+                                >
+                                    {wsStatus.charAt(0).toUpperCase() + wsStatus.slice(1)}
+                                </span>
+                            </div>
+
+                            {wsStatus === 'subscribed' && livePrice.ask && livePrice.bid ? (
+                                <div className="text-sm">
+                                    <div className="grid grid-cols-2 gap-2 items-center">
+                                        <p>Ask: <span className="font-semibold text-green-600 text-base">{livePrice.ask}</span></p>
+                                        <p>Bid: <span className="font-semibold text-red-600 text-base">{livePrice.bid}</span></p>
+                                    </div>
+                                    {livePrice.timestamp && (
+                                        <p className="text-xs text-gray-500 mt-1 text-right">
+                                            Updated: {new Date(livePrice.timestamp * 1000).toLocaleTimeString()}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : wsStatus === 'connecting' || (wsStatus === 'connected' && !livePrice.ask) ? (
+                                <p className="text-sm text-center text-gray-500 py-2">Fetching live price...</p>
+                            ) : wsStatus === 'error' ? (
+                                <p className="text-sm text-center text-red-500 py-2">Error fetching live price.</p>
+                            ) : wsStatus === 'disconnected' && currencyPair ? (
+                                <p className="text-sm text-center text-gray-500 py-2">Live price feed disconnected.</p>
+                            ) : (
+                                <p className="text-sm text-center text-gray-400 py-2">No live data available.</p> // Fallback for other states or initial load
+                            )}
+                        </div>
+                    )}
+                    <div className="flex flex-col gap-[0.375rem] mt-4">
                         <h4 className="text-[#364152] font-medium text-sm leading-5">Notification type</h4>
                         <div className="flex gap-2 items-center">
                             <button

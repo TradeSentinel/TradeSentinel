@@ -6,6 +6,10 @@ Historical rates
 Currency conversion
 Forex market
 Websocket API
+Protocol description
+How it works?
+Available message codes
+Example implementation
 Available currencies
 Available cryptocurrencies
 Sign Up for an API Key
@@ -46,9 +50,18 @@ Parameter	Description
 base	the currency code of your preferred base currency (see: list of available currencies)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/latest?base=EUR' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/latest?base=EUR',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) {
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -102,9 +115,18 @@ base	the currency code of your preferred base currency (see: list of available c
 symbols	limit results to specific currencies (a comma-separated list)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/historical/2000-10-10?base=EUR' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/historical/2000-10-10?base=EUR',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) {
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -149,9 +171,18 @@ Parameter	Description
 amount	the amount to be converted.
 from	the currency code of the currency you would like to convert from (see: list of available currencies)
 to	the currency code of the currency you would like to convert to (see: list of available currencies)
-curl --location --request GET 'https://api.xchangeapi.com/latest?base=EUR' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/convert?amount=10&from=USD&to=EUR',
+  'headers': {
+    'api-key': 'your-api-key',
+  }
+};
+request(options, function (error, response) {
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -268,9 +299,18 @@ Parameter	Description
 currency-pair	desired currency pair (see: list of available currencies)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/currencies/EURUSD' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/json/currencies/EURUSD',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -285,10 +325,19 @@ Parameter	Description
 currency-pair	desired currency pair (see: list of available currencies)
 Example request:
 
-curl --location --request POST 'https://api.xchangeapi.com/xml/currencies/EURUSD' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.xchangeapi.com/xml/currencies/EURUSD',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -305,9 +354,18 @@ Parameter	Description
 currency-pair	desired currency pair (see: list of available currencies)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/currencies/EURUSD' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/csv/currencies/EURUSD',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 ask,bid,name,time
@@ -321,9 +379,6 @@ Parameter	Description
 currency-pair-{1-n}	desired currency pair (see: list of available currencies)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/currencies?pairs=[%22EURUSD%22,%20%22CHFGBP%22]%0A' \
---header 'api-key: your-api-key' \
---data-raw ''
 Example response:
 
 [
@@ -350,14 +405,21 @@ Requests should be sent with the following body:
 </data>
 Example request:
 
-curl --location --request POST 'https://api.xchangeapi.com/xml/currencies
-' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw '<data>
-  <pair>EURUSD</pair>
-  <pair>CHFGBP</pair>
-</data>'
+var request = require('request');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.xchangeapi.com/xml/currencies\n',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  },
+  body: "<data>\n  <pair>EURUSD</pair>\n  <pair>CHFGBP</pair>\n</data>"
+
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -380,9 +442,18 @@ Parameter	Description
 currency-pair-{1-n}	desired currency pair (see: list of available currencies)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/currencies?pairs=[%22EURUSD%22,%20%22CHFGBP%22]%0A' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/csv/currencies?pairs=["EURUSD", "CHFGBP"]\n',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 ask,bid,name,time
@@ -395,9 +466,18 @@ JSON
 GET /json/currencies/all
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/currencies/all' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/json/currencies/all',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 [
@@ -419,10 +499,19 @@ XML
 GET /xml/currencies/all
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/xml/currencies/all' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/xml/currencies/all',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -444,9 +533,18 @@ CSV
 GET /csv/currencies/all
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/currencies/all' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/csv/currencies/all',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 ask,bid,name,time
@@ -472,9 +570,18 @@ endtime	as above, but it is the date of the end of requested period
 resolution	resolution of data, possible values are: 1, 5, 10, 60, 1800 (see: data properties)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/history/EURUSD?starttime=1577836800&resolution=60&endtime=1577836920' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/json/history/EURUSD?starttime=1577836800&resolution=60&endtime=1577836920',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -518,14 +625,21 @@ endtime	as above, but it is the date of the end of requested period
 resolution	resolution of data, possible values are: 1, 5, 10, 60, 1800 (see: data properties)
 Example request:
 
-curl --location --request POST 'https://api.xchangeapi.com/xml/history/EURUSD' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw '<data>
-    <starttime>1577836800</starttime>
-    &lt;endtime>1577836920</endtime>
-    &lt;resolution>60</resolution>
-</data>'
+var request = require('request');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.xchangeapi.com/xml/history/EURUSD',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  },
+  body: "<data>\n    <starttime>1577836800</starttime>\n    &lt;endtime>1577836920</endtime>\n    &lt;resolution>60</resolution>\n</data>"
+
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -572,9 +686,37 @@ endtime	as above, but it is the date of the end of requested period
 resolution	resolution of data, possible values are: 1, 5, 10, 60, 1800 (see: data properties)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/history/EURUSD?starttime=1577836800&resolution=60&endtime=1577836920' \
---header 'api-key: your-api-key' \
---data-raw ''
+var http = require('follow-redirects').http;
+var fs = require('fs');
+
+var options = {
+  'method': 'GET',
+  'hostname': 'api.eu.xchangeapi.com',
+  'path': '/csv/history/EURUSD?starttime=1577836800&resolution=60&endtime=1577836920',
+  'headers': {
+    'api-key': 'your-api-key'
+  },
+  'maxRedirects': 20
+};
+
+var req = http.request(options, function (res) {
+  var chunks = [];
+
+  res.on("data", function (chunk) {
+    chunks.push(chunk);
+  });
+
+  res.on("end", function (chunk) {
+    var body = Buffer.concat(chunks);
+    console.log(body.toString());
+  });
+
+  res.on("error", function (error) {
+    console.error(error);
+  });
+});
+
+req.end();
 Example response:
 
 time,min_ask,max_ask,open_ask,close_ask,min_bid,max_bid,open_bid,close_bid
@@ -591,9 +733,18 @@ currency-pair	desired currency pair (see: list of available currencies)
 period	one of predefined time periods (30m - last 30 minutes, 1h - last hour, 6h - last 6 hours, 12h - last 12 hours, 1d - last day, 2d - last 2 days, 7d - last 7 days, 1M - last month, 3M - last 3 months, 6M - last 6 months, 1Y - last year)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/chart/EURUSD/1d' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/json/chart/EURUSD/1d',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -626,10 +777,19 @@ currency-pair	desired currency pair (see: list of available currencies)
 period	one of predefined time periods (30m - last 30 minutes, 1h - last hour, 6h - last 6 hours, 12h - last 12 hours, 1d - last day, 2d - last 2 days, 7d - last 7 days, 1M - last month, 3M - last 3 months, 6M - last 6 months, 1Y - last year)
 Example request:
 
-curl --location --request POST 'https://api.xchangeapi.com/xml/chart/EURUSD/1d' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.xchangeapi.com/xml/chart/EURUSD/1d',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -664,9 +824,18 @@ currency-pair	desired currency pair (see: list of available currencies)
 period	one of predefined time periods (30m - last 30 minutes, 1h - last hour, 6h - last 6 hours, 12h - last 12 hours, 1d - last day, 2d - last 2 days, 7d - last 7 days, 1M - last month, 3M - last 3 months, 6M - last 6 months, 1Y - last year)
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/chart/EURUSD/1d' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/csv/chart/EURUSD/1d',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 time,min_ask,max_ask,open_ask,close_ask,min_bid,max_bid,open_bid,close_bid
@@ -684,9 +853,18 @@ starttime	UNIX timestamp indicating the date of the beginning of requested perio
 endtime	as above, but it is the date of the end of requested periods
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/json/chart/EURUSD?starttime=1577836800&endtime=1577836920' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/json/chart/EURUSD?starttime=1577836800&endtime=1577836920',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 {
@@ -729,13 +907,21 @@ starttime	UNIX timestamp indicating the date of the beginning of requested perio
 endtime	as above, but it is the date of the end of requested periods
 Example request:
 
-curl --location --request POST 'https://api.xchangeapi.com/xml/chart/EURUSD' \
---header 'Content-Type: application/xml' \
---header 'api-key: your-api-key' \
---data-raw '<data>
-    <starttime>1577836800</starttime>
-    &lt;endtime>1577836920</endtime>
-</data>'
+var request = require('request');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.xchangeapi.com/xml/chart/EURUSD',
+  'headers': {
+    'Content-Type': 'application/xml',
+    'api-key': 'your-api-key'
+  },
+  body: "<data>\n    <starttime>1577836800</starttime>\n    &lt;endtime>1577836920</endtime>\n</data>"
+
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 <result>
@@ -781,9 +967,18 @@ starttime	UNIX timestamp indicating the date of the beginning of requested perio
 endtime	as above, but it is the date of the end of requested periods
 Example request:
 
-curl --location --request GET 'https://api.xchangeapi.com/csv/chart/EURUSD?starttime=1577836800&endtime=1577836920' \
---header 'api-key: your-api-key' \
---data-raw ''
+var request = require('request');
+var options = {
+  'method': 'GET',
+  'url': 'https://api.xchangeapi.com/csv/chart/EURUSD?starttime=1577836800&endtime=1577836920',
+  'headers': {
+    'api-key': 'your-api-key'
+  }
+};
+request(options, function (error, response) { 
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
 Example response:
 
 time,min_ask,max_ask,open_ask,close_ask,min_bid,max_bid,open_bid,close_bid
@@ -851,6 +1046,97 @@ Message code	Description	Example message
 Example implementation
 Here you can find example implementations in Java Script and NodeJS.
 
+#!/usr/bin/env node
+var WebSocketClient = require('websocket').client;
+
+var client = new WebSocketClient();
+
+var start_time,
+    mapping,
+    order,
+    time_mult,
+    pairs = ['EURUSD', 'GBPCHF'];
+
+function unpackInit(data) {
+    var meta = JSON.parse(data);
+    start_time = meta['start_time'];
+    mapping = meta['mapping'];
+    order = meta['order'];
+    time_mult = meta['time_mult'];
+    return meta;
+};
+
+function unpackErrPair(data) {
+    return JSON.parse(data);
+};
+
+function unpackData(data) {
+    var inc = data.split('|');
+    var out = {};
+    for (var i in order) {
+        out[order[i]] = inc[i];
+    };
+    out["name"] = mapping[out["name"]];
+    out["time"] = parseFloat(out["time"]) / time_mult;
+    out["time"] += start_time;
+    return out;
+};
+
+function pack(data) {
+    return JSON.stringify(data);
+};
+
+function processMessage(data) {
+    var t = data.substring(0, 1);
+    var msg = data.substring(1);
+    var inc_data = null;
+    switch (t) {
+    case '0':
+        inc_data = unpackInit(msg);
+        break;
+    case '7':
+    case '8':
+    case '9':
+        inc_data = unpackErrPair(msg);
+        break;
+    case '1':
+        inc_data = unpackData(msg);
+        break;
+    case '2':
+        inc_data = "";
+        break
+    default:
+        break;
+    }
+    if(inc_data != null) {
+        try {
+            console.log(JSON.stringify(inc_data));
+        } catch (e) {
+            console.log(inc_data);
+        }
+    } else {
+        console.log('Error:' + error);
+    }
+}
+
+client.on('connectFailed', function(error) {
+    console.log('Connect Error: ' + error.toString());
+});
+
+client.on('connect', function(connection) {
+
+    connection.sendUTF(pack({"pairs": pairs}));
+
+    connection.on('error', function(error) {
+        console.log("Connection Error: " + error.toString());
+    });
+
+    connection.on('message', function(message) {
+        processMessage(message.utf8Data)
+    });
+});
+
+client.connect('wss://api.xchangeapi.com/websocket/live?api-key=your-api-key');
 Available currencies
 The following table contains list of available currencies. In order to query our API you have to provide a currency pair which containts two of the available currencies (for example EURUSD).
 
