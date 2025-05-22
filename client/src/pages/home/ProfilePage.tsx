@@ -10,8 +10,13 @@ import AvatarSelectionModal from '../../components/AvatarSelectionModal';
 
 const ProfilePage: React.FC = () => {
     const [loading, setLoading] = useState(false);
+    const [formLoading, setFormLoading] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
     const [userData, setUserData] = useState<any>(null);
+    const [formData, setFormData] = useState({
+        fullName: ''
+    });
+    const [formModified, setFormModified] = useState(false);
 
     const currentUser = useGeneralAppStore((state) => state.currentUser);
     const userProfileName = useGeneralAppStore((state) => state.userProfileName);
@@ -19,10 +24,17 @@ const ProfilePage: React.FC = () => {
     const avatarId = useGeneralAppStore((state) => state.avatarId);
     const updateHasSetAvatar = useGeneralAppStore((state) => state.updateHasSetAvatar);
     const updateAvatarId = useGeneralAppStore((state) => state.updateAvatarId);
+    const updateUserProfileName = useGeneralAppStore((state) => state.updateUserProfileName);
 
-    const fullName = userProfileName || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'User');
     const email = currentUser?.email || '';
     const isEmailVerified = currentUser?.emailVerified || false;
+
+    // Initialize form data when user profile name changes
+    useEffect(() => {
+        setFormData({
+            fullName: userProfileName || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'User')
+        });
+    }, [userProfileName, currentUser]);
 
     // Fetch any additional user data on component mount (if needed)
     useEffect(() => {
@@ -44,6 +56,51 @@ const ProfilePage: React.FC = () => {
 
         fetchUserData();
     }, [currentUser]);
+
+    // Handle input change
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData({
+            ...formData,
+            [name]: value
+        });
+        setFormModified(true);
+    };
+
+    // Handle form submission
+    const handleSaveChanges = async () => {
+        // Validate full name
+        if (!formData.fullName.trim()) {
+            toast.error("Full name cannot be empty");
+            return;
+        }
+
+        if (!currentUser) {
+            toast.error("You must be logged in to update your profile");
+            return;
+        }
+
+        setFormLoading(true);
+        try {
+            const userDocRef = doc(db, "users", currentUser.uid);
+
+            // Update Firestore
+            await updateDoc(userDocRef, {
+                fullName: formData.fullName
+            });
+
+            // Update Zustand store
+            updateUserProfileName(formData.fullName);
+
+            toast.success("Profile updated successfully!");
+            setFormModified(false);
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            toast.error("Failed to update profile. Please try again.");
+        } finally {
+            setFormLoading(false);
+        }
+    };
 
     // Handle avatar selection
     const handleSelectAvatar = async (newAvatarId: number) => {
@@ -119,7 +176,7 @@ const ProfilePage: React.FC = () => {
             <div className={`overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${showAvatarModal ? 'blur-sm' : ''}`}>
                 <PageHeader name="Profile" />
 
-                <div className="flex-grow mt-6">
+                <div className="flex-grow mt-6 flex flex-col">
                     {/* Avatar Section */}
                     <div className="flex justify-center mb-8">
                         <div className="relative">
@@ -145,14 +202,16 @@ const ProfilePage: React.FC = () => {
 
                     {/* Profile Form */}
                     <div className="flex flex-col gap-5">
-                        {/* First Name Field (read-only) */}
+                        {/* First Name Field (editable) */}
                         <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium leading-5 text-[#364152]">First Name</label>
+                            <label className="text-sm font-medium leading-5 text-[#364152]">Full Name</label>
                             <input
-                                value={fullName}
-                                readOnly
-                                className="bg-white text-[#697586] w-full px-[14px] py-[10px] rounded-xl outline-none border-[0.5px] border-[#E3E8EF]"
+                                name="fullName"
+                                value={formData.fullName}
+                                onChange={handleInputChange}
+                                className="bg-white text-[#121926] w-full px-[14px] py-[10px] rounded-xl outline-none border-[0.5px] border-[#E3E8EF]"
                                 type="text"
+                                placeholder="Enter your full name"
                             />
                         </div>
 
@@ -172,9 +231,23 @@ const ProfilePage: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
+
+                </div>
+
+            </div>
+            {/* Save Changes Button */}
+            {formModified && (
+                <div className="absolute bottom-0 mt-auto border-t-[1px] border-[#CDD5DF] p-[1.25rem] w-full pb-12">
+                    <button
+                        onClick={handleSaveChanges}
+                        disabled={formLoading}
+                        className="w-full py-[0.625rem] flex items-center justify-center px-[1.125rem] font-medium text-white rounded-full bg-[#7F56D9]"
+                    >
+                        {formLoading ? <MiniLoader /> : "Save Changes"}
+                    </button>
+                </div>
+            )}
             {/* Modal Backdrop */}
             {showAvatarModal && (
                 <div className="fixed inset-0 modal-backdrop z-40" onClick={() => setShowAvatarModal(false)}></div>
