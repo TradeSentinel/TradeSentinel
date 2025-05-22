@@ -16,6 +16,7 @@ const ProfilePage: React.FC = () => {
     const [formData, setFormData] = useState({
         fullName: ''
     });
+    const [selectedAvatarId, setSelectedAvatarId] = useState<number | null>(null);
     const [formModified, setFormModified] = useState(false);
 
     const currentUser = useGeneralAppStore((state) => state.currentUser);
@@ -29,12 +30,13 @@ const ProfilePage: React.FC = () => {
     const email = currentUser?.email || '';
     const isEmailVerified = currentUser?.emailVerified || false;
 
-    // Initialize form data when user profile name changes
+    // Initialize form data and selected avatar when user profile data changes
     useEffect(() => {
         setFormData({
             fullName: userProfileName || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'User')
         });
-    }, [userProfileName, currentUser]);
+        setSelectedAvatarId(avatarId);
+    }, [userProfileName, currentUser, avatarId]);
 
     // Fetch any additional user data on component mount (if needed)
     useEffect(() => {
@@ -67,7 +69,16 @@ const ProfilePage: React.FC = () => {
         setFormModified(true);
     };
 
-    // Handle form submission
+    // Handle avatar selection (just update local state, don't save to DB yet)
+    const handleSelectAvatar = (newAvatarId: number) => {
+        setShowAvatarModal(false);
+        if (newAvatarId !== avatarId) {
+            setSelectedAvatarId(newAvatarId);
+            setFormModified(true);
+        }
+    };
+
+    // Handle form submission - now includes avatar update
     const handleSaveChanges = async () => {
         // Validate full name
         if (!formData.fullName.trim()) {
@@ -83,14 +94,28 @@ const ProfilePage: React.FC = () => {
         setFormLoading(true);
         try {
             const userDocRef = doc(db, "users", currentUser.uid);
+            const updates: any = {
+                fullName: formData.fullName
+            };
+
+            // Only include avatar updates if the avatar was changed
+            if (selectedAvatarId !== null && selectedAvatarId !== avatarId) {
+                updates.avatarId = selectedAvatarId;
+                updates.avatarUrl = `/avatar${selectedAvatarId}.png`;
+                updates.hasSetAvatar = true;
+            }
 
             // Update Firestore
-            await updateDoc(userDocRef, {
-                fullName: formData.fullName
-            });
+            await updateDoc(userDocRef, updates);
 
             // Update Zustand store
             updateUserProfileName(formData.fullName);
+
+            // Only update avatar in store if it was changed
+            if (selectedAvatarId !== null && selectedAvatarId !== avatarId) {
+                updateAvatarId(selectedAvatarId);
+                updateHasSetAvatar(true);
+            }
 
             toast.success("Profile updated successfully!");
             setFormModified(false);
@@ -102,42 +127,6 @@ const ProfilePage: React.FC = () => {
         }
     };
 
-    // Handle avatar selection
-    const handleSelectAvatar = async (newAvatarId: number) => {
-        setShowAvatarModal(false);
-
-        if (!currentUser) {
-            toast.error("You must be logged in to update your avatar.");
-            return;
-        }
-
-        // If the avatar is the same, don't update
-        if (newAvatarId === avatarId) return;
-
-        setLoading(true);
-        try {
-            const userDocRef = doc(db, "users", currentUser.uid);
-
-            // Update the user document with the selected avatar ID
-            await updateDoc(userDocRef, {
-                avatarId: newAvatarId,
-                avatarUrl: `/avatar${newAvatarId}.png`, // For future use when actual avatar images are available
-                hasSetAvatar: true
-            });
-
-            // Update Zustand store
-            updateAvatarId(newAvatarId);
-            updateHasSetAvatar(true);
-
-            toast.success("Avatar updated successfully!");
-        } catch (error) {
-            console.error("Error updating avatar:", error);
-            toast.error("Failed to update avatar. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     // Toggle avatar modal
     const toggleAvatarModal = () => {
         setShowAvatarModal(prev => !prev);
@@ -146,7 +135,6 @@ const ProfilePage: React.FC = () => {
     // Close modal when clicking outside (backdrop)
     useEffect(() => {
         const handleBackdropClick = (e: MouseEvent) => {
-
             const target = e.target as HTMLElement;
             if (target.classList.contains('modal-backdrop')) {
                 // Don't immediately hide the modal, let it animate first
@@ -166,6 +154,9 @@ const ProfilePage: React.FC = () => {
         };
     }, [showAvatarModal]);
 
+    // Show the currently selected avatar (from local state) or fall back to the one from store
+    const displayAvatarId = selectedAvatarId !== null ? selectedAvatarId : avatarId;
+
     return (
         <>
             {loading && (
@@ -181,9 +172,9 @@ const ProfilePage: React.FC = () => {
                     <div className="flex justify-center mb-8">
                         <div className="relative">
                             <div className="bg-white w-[80px] h-[80px] rounded-full flex items-center justify-center overflow-hidden">
-                                {avatarId ? (
+                                {displayAvatarId ? (
                                     <img
-                                        src={`/avatar${avatarId}.png`}
+                                        src={`/avatar${displayAvatarId}.png`}
                                         alt="User Avatar"
                                         className="w-full h-full object-cover"
                                     />
@@ -258,7 +249,7 @@ const ProfilePage: React.FC = () => {
                 <AvatarSelectionModal
                     onClose={() => setShowAvatarModal(false)}
                     onSelectAvatar={handleSelectAvatar}
-                    currentAvatarId={avatarId}
+                    currentAvatarId={displayAvatarId}
                 />
             )}
         </>

@@ -8,7 +8,7 @@ import TopPairs from "../../components/homeComponents/TopPairs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../utils/firebaseInit";
 import { collection, doc, updateDoc, setDoc, query, where, orderBy, limit, getDocs, Timestamp, getDoc } from "firebase/firestore";
-import { Clock } from "../../components/Icons";
+import { Clock, Person } from "../../components/Icons";
 import { toast } from 'react-toastify';
 
 // Component to show design for when a user does not have any alert on active and previous
@@ -170,11 +170,9 @@ export default function Homepage() {
                                     className="h-[40px] w-[40px] rounded-full object-cover"
                                 />
                             ) : (
-                                <img
-                                    src={currentUser?.photoURL || "/Avatars.svg"}
-                                    className="h-[40px] w-[40px] rounded-full"
-                                    alt="User Avatar"
-                                />
+                                <div className="h-[40px] w-[40px] rounded-full bg-[#EEF2F6] flex items-center justify-center">
+                                    <Person />
+                                </div>
                             )}
                         </i>
                         <div className="flex flex-col text-xs text-[#101828]">
@@ -190,7 +188,7 @@ export default function Homepage() {
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             {!hasSetAvatar && (
                                 <div
-                                    onClick={() => navigateTo("/account")}
+                                    onClick={() => navigateTo("/profile")}
                                     role="button"
                                     tabIndex={0}
                                     className="bg-white flex flex-col gap-2 p-3 rounded-xl cursor-pointer hover:shadow-md transition-shadow"
