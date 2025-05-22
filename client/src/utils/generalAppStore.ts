@@ -18,6 +18,7 @@ export type State = {
   currentUser: User | null,
   userProfileName: string | null,
   hasSetAvatar: boolean,
+  avatarId: number | null,
   pwaPromptDismissed: boolean,
   authLoading: boolean,
   alerts: {
@@ -33,6 +34,7 @@ export type Actions = {
   updateUser: (user: User | null) => void,
   updateUserProfileName: (name: string | null) => void,
   updateHasSetAvatar: (status: boolean) => void,
+  updateAvatarId: (id: number | null) => void,
   updatePwaPromptDismissed: (status: boolean) => void,
   setAuthLoading: (loading: boolean) => void,
   updateActiveAlerts: (newAlerts: generalAlertType[]) => void,
@@ -48,6 +50,7 @@ export const useGeneralAppStore = create<State & Actions>((set) => ({
   currentUser: null,
   userProfileName: null,
   hasSetAvatar: false,
+  avatarId: null,
   pwaPromptDismissed: false,
   authLoading: true,
   alerts: {
@@ -66,6 +69,7 @@ export const useGeneralAppStore = create<State & Actions>((set) => ({
   updateUser: (user: User | null) => set({ currentUser: user }),
   updateUserProfileName: (name: string | null) => set({ userProfileName: name }),
   updateHasSetAvatar: (status: boolean) => set({ hasSetAvatar: status }),
+  updateAvatarId: (id: number | null) => set({ avatarId: id }),
   updatePwaPromptDismissed: (status: boolean) => set({ pwaPromptDismissed: status }),
   setAuthLoading: (loading: boolean) => set({ authLoading: loading }),
   updateActiveAlerts: (newAlerts: generalAlertType[]) =>

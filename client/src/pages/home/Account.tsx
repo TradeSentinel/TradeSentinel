@@ -4,7 +4,7 @@ import { auth } from "../../utils/firebaseInit";
 import { signOut } from "firebase/auth";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 import { toast } from "react-toastify";
-import { requestNotificationPermission } from "../../utils/requestPermission";
+import { Bell, Caret, Globe, Person, Security } from "../../components/Icons";
 
 export default function Account() {
 
@@ -34,135 +34,70 @@ export default function Account() {
 
     return (
         <div className={`relative overflow-scroll dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full `}>
-            <div className="flex mt-3 items-center justify-center">
+            {/* <div className="flex mt-3 items-center justify-center">
                 <div className="bg-white p-[2px] rounded-full">
                     <img
                         src="/Avatars.svg"
                         className="h-16 w-16"
                     />
                 </div>
-            </div>
+            </div> */}
 
-            <div className="mt-14 flex-grow overflow-scroll scrollbarHidden mb-16">
+            <div className="flex-grow overflow-scroll scrollbarHidden mb-16 relative">
                 <div className="bg-white p-3 flex flex-col gap-[6px] rounded-3xl">
-                    <div className="flex items-center gap-2">
+                    <div onClick={() => navigateTo("/profile")} role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M17.3439 8.99984C17.3439 11.511 16.2332 13.7627 14.4763 15.2905C13.0131 16.5629 11.1018 17.3332 9.01058 17.3332C6.91935 17.3332 5.00803 16.5629 3.54488 15.2905C1.78795 13.7627 0.677246 11.511 0.677246 8.99984C0.677246 4.39746 4.40821 0.666504 9.01058 0.666504C13.613 0.666504 17.3439 4.39746 17.3439 8.99984ZM11.5106 6.49984C11.5106 5.11913 10.3913 3.99984 9.01058 3.99984C7.62987 3.99984 6.51058 5.11913 6.51058 6.49984C6.51058 7.88055 7.62987 8.99984 9.01058 8.99984C10.3913 8.99984 11.5106 7.88055 11.5106 6.49984ZM9.01058 10.6665C10.4378 10.6665 11.3764 11.4304 12.0382 12.2794C12.532 12.9129 12.3621 13.8421 11.6458 14.2054C10.8542 14.6069 9.95883 14.8332 9.01058 14.8332C8.06233 14.8332 7.16692 14.6069 6.3754 14.2054C5.65909 13.8421 5.48914 12.9129 5.98291 12.2794C6.64471 11.4304 7.5833 10.6665 9.01058 10.6665Z" fill="#28303F" />
-                            </svg>
+                            <Person />
                         </div>
                         <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
-                            <p className="text-xs font-semibold text-[#121926]">Personal Info</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
+                            <p className="text-xs font-semibold text-[#121926]">Profile</p>
+                            <Caret />
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div onClick={() => navigateTo("/change-password")} role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M2.49184 3.11881L6.65669 1.26776C7.51857 0.884704 8.50239 0.884704 9.36428 1.26776L13.5126 3.11147C14.7257 3.65062 15.522 4.86238 15.437 6.18716C15.1109 11.2687 13.6582 13.5658 9.73101 16.2308C8.69462 16.9341 7.32748 16.9324 6.29032 16.2302C2.37521 13.5796 0.868511 11.3145 0.568817 6.16934C0.492159 4.85326 1.28715 3.65422 2.49184 3.11881ZM10.9808 7.74431C11.2081 7.48454 11.1818 7.08968 10.922 6.86238C10.6623 6.63508 10.2674 6.66141 10.0401 6.92118L7.64853 9.65442C7.57512 9.73833 7.44866 9.74956 7.3616 9.67991L5.90092 8.51137C5.63138 8.29574 5.23807 8.33944 5.02244 8.60898C4.80681 8.87851 4.85051 9.27182 5.12005 9.48745L6.58073 10.656C7.19014 11.1435 8.07535 11.0649 8.58925 10.4776L10.9808 7.74431Z" fill="#28303F" />
-                            </svg>
+                            <Security />
                         </div>
                         <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
                             <p className="text-xs font-semibold text-[#121926]">Change Password</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
+                            <Caret />
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div onClick={() => navigateTo("/notifications")} role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M17.3439 8.99984C17.3439 11.511 16.2332 13.7627 14.4763 15.2905C13.0131 16.5629 11.1018 17.3332 9.01058 17.3332C6.91935 17.3332 5.00803 16.5629 3.54488 15.2905C1.78795 13.7627 0.677246 11.511 0.677246 8.99984C0.677246 4.39746 4.40821 0.666504 9.01058 0.666504C13.613 0.666504 17.3439 4.39746 17.3439 8.99984ZM11.5106 6.49984C11.5106 5.11913 10.3913 3.99984 9.01058 3.99984C7.62987 3.99984 6.51058 5.11913 6.51058 6.49984C6.51058 7.88055 7.62987 8.99984 9.01058 8.99984C10.3913 8.99984 11.5106 7.88055 11.5106 6.49984ZM9.01058 10.6665C10.4378 10.6665 11.3764 11.4304 12.0382 12.2794C12.532 12.9129 12.3621 13.8421 11.6458 14.2054C10.8542 14.6069 9.95883 14.8332 9.01058 14.8332C8.06233 14.8332 7.16692 14.6069 6.3754 14.2054C5.65909 13.8421 5.48914 12.9129 5.98291 12.2794C6.64471 11.4304 7.5833 10.6665 9.01058 10.6665Z" fill="#28303F" />
-                            </svg>
+                            <Bell />
                         </div>
                         <div className="flex flex-grow items-center justify-between py-4">
                             <p className="text-xs font-semibold text-[#121926]">Notifications</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
+                            <Caret />
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white mt-12 p-3 flex flex-col gap-[6px] rounded-3xl">
-                    <div className="flex items-center gap-2">
+                <div className="bg-white mt-6 p-3 flex flex-col gap-[6px] rounded-3xl">
+                    <div onClick={() => navigateTo("/about-us")} role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M17.3439 8.99984C17.3439 11.511 16.2332 13.7627 14.4763 15.2905C13.0131 16.5629 11.1018 17.3332 9.01058 17.3332C6.91935 17.3332 5.00803 16.5629 3.54488 15.2905C1.78795 13.7627 0.677246 11.511 0.677246 8.99984C0.677246 4.39746 4.40821 0.666504 9.01058 0.666504C13.613 0.666504 17.3439 4.39746 17.3439 8.99984ZM11.5106 6.49984C11.5106 5.11913 10.3913 3.99984 9.01058 3.99984C7.62987 3.99984 6.51058 5.11913 6.51058 6.49984C6.51058 7.88055 7.62987 8.99984 9.01058 8.99984C10.3913 8.99984 11.5106 7.88055 11.5106 6.49984ZM9.01058 10.6665C10.4378 10.6665 11.3764 11.4304 12.0382 12.2794C12.532 12.9129 12.3621 13.8421 11.6458 14.2054C10.8542 14.6069 9.95883 14.8332 9.01058 14.8332C8.06233 14.8332 7.16692 14.6069 6.3754 14.2054C5.65909 13.8421 5.48914 12.9129 5.98291 12.2794C6.64471 11.4304 7.5833 10.6665 9.01058 10.6665Z" fill="#28303F" />
-                            </svg>
+                            <Person />
                         </div>
                         <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
-                            <p className="text-xs font-semibold text-[#121926]">Personal Info</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M2.49184 3.11881L6.65669 1.26776C7.51857 0.884704 8.50239 0.884704 9.36428 1.26776L13.5126 3.11147C14.7257 3.65062 15.522 4.86238 15.437 6.18716C15.1109 11.2687 13.6582 13.5658 9.73101 16.2308C8.69462 16.9341 7.32748 16.9324 6.29032 16.2302C2.37521 13.5796 0.868511 11.3145 0.568817 6.16934C0.492159 4.85326 1.28715 3.65422 2.49184 3.11881ZM10.9808 7.74431C11.2081 7.48454 11.1818 7.08968 10.922 6.86238C10.6623 6.63508 10.2674 6.66141 10.0401 6.92118L7.64853 9.65442C7.57512 9.73833 7.44866 9.74956 7.3616 9.67991L5.90092 8.51137C5.63138 8.29574 5.23807 8.33944 5.02244 8.60898C4.80681 8.87851 4.85051 9.27182 5.12005 9.48745L6.58073 10.656C7.19014 11.1435 8.07535 11.0649 8.58925 10.4776L10.9808 7.74431Z" fill="#28303F" />
-                            </svg>
-                        </div>
-                        <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
-                            <p className="text-xs font-semibold text-[#121926]">Security</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M17.3439 8.99984C17.3439 11.511 16.2332 13.7627 14.4763 15.2905C13.0131 16.5629 11.1018 17.3332 9.01058 17.3332C6.91935 17.3332 5.00803 16.5629 3.54488 15.2905C1.78795 13.7627 0.677246 11.511 0.677246 8.99984C0.677246 4.39746 4.40821 0.666504 9.01058 0.666504C13.613 0.666504 17.3439 4.39746 17.3439 8.99984ZM11.5106 6.49984C11.5106 5.11913 10.3913 3.99984 9.01058 3.99984C7.62987 3.99984 6.51058 5.11913 6.51058 6.49984C6.51058 7.88055 7.62987 8.99984 9.01058 8.99984C10.3913 8.99984 11.5106 7.88055 11.5106 6.49984ZM9.01058 10.6665C10.4378 10.6665 11.3764 11.4304 12.0382 12.2794C12.532 12.9129 12.3621 13.8421 11.6458 14.2054C10.8542 14.6069 9.95883 14.8332 9.01058 14.8332C8.06233 14.8332 7.16692 14.6069 6.3754 14.2054C5.65909 13.8421 5.48914 12.9129 5.98291 12.2794C6.64471 11.4304 7.5833 10.6665 9.01058 10.6665Z" fill="#28303F" />
-                            </svg>
-                        </div>
-                        <div className="flex flex-grow items-center justify-between py-4">
                             <p className="text-xs font-semibold text-[#121926]">About Trade Sentinel</p>
-                            <i>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" viewBox="0 0 21 20" fill="none">
-                                    <path d="M8.34375 14.1665L11.6771 9.99984L8.34375 5.83317" stroke="#9AA4B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </i>
+                            <Caret />
                         </div>
                     </div>
-                </div>
-
-                {/* Notification Settings Section */}
-                <div className="bg-white mt-8 p-3 flex flex-col gap-[6px] rounded-3xl">
-                    <div className="flex items-center gap-2">
+                    <a href="https://tradesentinel.xyz" target="_blank" rel="noopener noreferrer" role="button" tabIndex={0} className="flex items-center gap-2 cursor-pointer">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                            </svg>
+                            <Globe />
                         </div>
-                        <div className="flex flex-grow items-center justify-between py-4">
-                            <p className="text-xs font-semibold text-[#121926]">Notification Settings</p>
+                        <div className="flex flex-grow items-center justify-between border-b-[1px] py-4">
+                            <p className="text-xs font-semibold text-[#121926]">Website</p>
+                            <Caret />
                         </div>
-                    </div>
-                    <button
-                        onClick={requestNotificationPermission}
-                        className="w-full mt-2 bg-[#7F56D9] hover:bg-[#6941C6] text-white font-medium py-2 px-4 rounded-lg text-sm"
-                    >
-                        Enable Push Notifications
-                    </button>
+                    </a>
                 </div>
-                {/* End of Notification Settings Section */}
 
-                <div className="bg-white p-3 flex flex-col gap-[6px] rounded-3xl mt-12">
+
+
+                <div className="bg-white p-3 flex flex-col gap-[6px] rounded-3xl bottom-6 absolute w-full">
                     <div className="flex items-center gap-2">
                         <div className="p-2 rounded-full bg-[#F8FAFC]">
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="18" viewBox="0 0 15 18" fill="none">

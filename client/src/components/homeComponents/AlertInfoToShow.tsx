@@ -1,8 +1,5 @@
 import { useGeneralAppStore, generalAlertType } from "../../utils/generalAppStore"
-import PauseIcon from "../icons/Pause"
-import Pencil from "../icons/Pencil"
-import Trash from "../icons/Trash"
-import PlayIcon from "../icons/Play"
+import { Pause, Pencil, Trash, Play } from "../Icons"
 import { useNavigate } from "react-router-dom"
 import { db } from "../../utils/firebaseInit"
 import { doc, deleteDoc, updateDoc } from "firebase/firestore"
@@ -63,9 +60,17 @@ export default function AlertInfoToShow() {
 
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
 
     const statusColor = currentAlert?.status === 'active' ? 'text-[#008D25]' : currentAlert?.status === 'paused' ? 'text-[#F79009]' : 'text-[#AD183F]';
     const isTerminalStatus = currentAlert?.status === "triggered" || currentAlert?.status === "cancelled";
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            updateShowAlertInfo(false);
+        }, 300); // Match this timeout with the animation duration
+    };
 
     const handleDelete = async () => {
         if (!currentAlert || !currentAlert.id || !currentUser) {
@@ -79,7 +84,7 @@ export default function AlertInfoToShow() {
             await deleteDoc(alertDocRef);
             removeAlertFromLists(currentAlert.id);
             toast.success("Alert deleted successfully!");
-            updateShowAlertInfo(false); // Close modal
+            handleClose(); // Use handleClose instead of updateShowAlertInfo directly
         } catch (error) {
             console.error("Error deleting alert:", error);
             toast.error("Failed to delete alert. Please try again.");
@@ -114,10 +119,12 @@ export default function AlertInfoToShow() {
             toast.error("Alert information is missing for editing.");
             return;
         }
-        // Potentially set the alert to edit in Zustand store if EditAlert page needs it pre-filled
-        // updateNewAlert(currentAlert); // Assuming updateNewAlert can handle a full alert object
-        navigateTo(`/edit_alert/${currentAlert.id}`);
-        updateShowAlertInfo(false); // Close modal
+        // Set closing animation first, then navigate
+        setIsClosing(true);
+        setTimeout(() => {
+            navigateTo(`/edit_alert/${currentAlert.id}`);
+            updateShowAlertInfo(false);
+        }, 300);
     };
 
     return (
@@ -135,7 +142,7 @@ export default function AlertInfoToShow() {
                     confirmText="Delete"
                 />
             )}
-            <div className="flex flex-col w-full bg-[#FCFCFD] rounded-t-[1.25rem] max-w-[600px]">
+            <div className={`flex flex-col w-full bg-[#FCFCFD] rounded-t-[1.25rem] max-w-[600px] ${isClosing ? 'slide-down-animation' : 'slide-up-animation'}`}>
                 <div className=" w-full flex flex-col items-center py-8 px-5">
                     <div className="w-full flex items-center flex-col border-b-[#EEF2F6] border-b-[1px]">
                         <h5 className="text-[#121926] font-medium text-[1.125rem]">Alert Details</h5>
@@ -146,7 +153,7 @@ export default function AlertInfoToShow() {
                                     disabled={isLoading || isTerminalStatus}
                                     className="bg-white p-3 w-full rounded-full flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {currentAlert?.status === "active" ? <PauseIcon /> : <PlayIcon />}
+                                    {currentAlert?.status === "active" ? <Pause /> : <Play />}
                                     <p className="text-sm leading-5 text-[#202939]">
                                         {currentAlert?.status === "active" ? "Pause" :
                                             currentAlert?.status === "paused" ? "Play" :
@@ -218,7 +225,7 @@ export default function AlertInfoToShow() {
                 </div>
                 <div className="mt-8 pb-12 p-3 flex w-full border-t-[1.5px] border-[#CDD5DF]">
                     <button
-                        onClick={() => updateShowAlertInfo(false)}
+                        onClick={handleClose}
                         className="text-[#697586] py-[10px] px-[18px] flex items-center justify-center w-full"
                     >
                         Cancel

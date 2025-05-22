@@ -81,16 +81,17 @@ This document tracks the development progress of the Trade Sentinel PWA.
   - [x] Handle notification preferences.
   - [x] PageLoader shown during initial data fetch.
   - [x] Reset global alert state on unmount.
-- [ ] **Next: Alert Triggering Logic (Backend - Server-Side)**
-  - [ ] Setup Node.js server project (`server/` directory, dependencies: `firebase-admin`, `ws`).
-  - [ ] Backend service to monitor currency prices against active alerts.
-    - [ ] Load active user alerts from Firestore.
-    - [ ] Manage shared WebSocket connections to XChangeAPI for unique currency pairs.
-    - [ ] Process real-time price updates from XChangeAPI.
-    - [ ] Check alert conditions against new prices.
-  - [ ] When an alert's condition is met:
-    - [ ] Update alert `status` to "triggered" in Firestore.
-    - [ ] Initiate notifications (see Section 5).
+- [x] **Alert Triggering Logic (Backend - Server-Side)**
+  - [x] Setup Node.js server project (`server/` directory, dependencies: `firebase-admin`, `ws`, `dotenv`).
+  - [x] Backend service to monitor currency prices against active alerts.
+    - [x] Load active user alerts from Firestore (initially and on change via listener).
+    - [x] Manage shared WebSocket connections to XChangeAPI for unique currency pairs.
+    - [x] Process real-time price updates from XChangeAPI.
+    - [x] Check alert conditions against new prices.
+  - [x] When an alert's condition is met:
+    - [x] Update alert `status` to "triggered" and set `triggeredAt` timestamp in Firestore.
+    - [x] Initiate notifications (see Section 5).
+    - [x] Implemented de-duplication logic to prevent multiple triggers for the same event.
 
 ### 4. Real-time Data Integration (XChange API & WebSockets)
 - [x] Client-Side WebSocket for Live Price Display (`CreateAlert.tsx`, `EditAlert.tsx`)
@@ -101,9 +102,9 @@ This document tracks the development progress of the Trade Sentinel PWA.
   - [x] Handle price update messages (code `1`) for `ask`, `bid`, `timestamp`.
   - [x] Display live prices and connection status in UI, styled to match app design.
   - [x] Robust WebSocket lifecycle management (connection, errors, cleanup).
-- [ ] **Next: Server-Side WebSocket Management for Alert Triggering**
-  - [ ] This is part of the "Alert Triggering Logic (Backend)" in Section 3.
-  - [ ] The server will maintain persistent WebSocket connections to XChangeAPI for all *active* alerts.
+- [x] **Server-Side WebSocket Management for Alert Triggering**
+  - [x] This is part of the "Alert Triggering Logic (Backend)" in Section 3 and is now implemented.
+  - [x] The server maintains persistent WebSocket connections to XChangeAPI for all *active* alerts.
 - [ ] Fetch list of available currency pairs for selection (Potentially from XChangeAPI REST endpoint, or use a predefined list).
 - [x] Securely manage API keys/credentials (Client uses Vite env vars; Server will use its own env vars).
 
@@ -112,9 +113,9 @@ This document tracks the development progress of the Trade Sentinel PWA.
   - [x] Initialize Firebase Messaging (`firebaseInit.ts`).
   - [x] Request notification permission (`requestPermission.ts`).
   - [x] Get FCM token (client-side).
-- [ ] **Next: Server-Side Notification Dispatch**
-  - [ ] Store user FCM tokens on the server (e.g., in Firestore, associated with the user).
-  - [ ] Backend function (likely Node.js server) to send push notifications via FCM (using `firebase-admin`) when an alert is triggered.
+- [x] **Server-Side Notification Dispatch**
+  - [x] Store user FCM tokens on the server (in Firestore, associated with the user, using token as document ID).
+  - [x] Backend Node.js server sends push notifications via FCM (using `firebase-admin`) when an alert is triggered.
   - [ ] Backend logic to send email notifications if selected by the user when an alert is triggered (requires email service integration).
 
 ### 6. General Application Structure & UX

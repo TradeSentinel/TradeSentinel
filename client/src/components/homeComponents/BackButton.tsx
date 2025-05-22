@@ -6,7 +6,7 @@ export default function BackButton() {
 
     return (
         <button
-            onClick={() => goBack("/dashboard")}
+            onClick={() => goBack(-1)}
             className="bg-white p-[0.625rem] rounded-full h-[44px] w-[44px] flex items-center justify-center"
         >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">

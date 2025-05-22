@@ -1,26 +1,22 @@
 import { FaChevronRight, FaCheck } from "react-icons/fa6";
-// import { useState } from "react";
+import { useState, useEffect } from "react";
 import HomeBottomNavbar from "../../components/homeComponents/HomeBottomNavbar";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
-import { useEffect } from "react";
 import Alerts from "../../components/homeComponents/Alerts";
 import AlertInfoToShow from "../../components/homeComponents/AlertInfoToShow";
 import TopPairs from "../../components/homeComponents/TopPairs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../utils/firebaseInit";
-import { collection, doc, updateDoc, setDoc, query, where, orderBy, limit, getDocs, Timestamp } from "firebase/firestore";
-import Clock from "../../components/Clock";
+import { collection, doc, updateDoc, setDoc, query, where, orderBy, limit, getDocs, Timestamp, getDoc } from "firebase/firestore";
+import { Clock } from "../../components/Icons";
 import { toast } from 'react-toastify';
 
 // Component to show design for when a user does not have any alert on active and previous
 export function CreateFirstAlert() {
     return (
-        <div className="w-full">
-            <div className="bg-white rounded-xl w-full flex flex-col items-center justify-center p-[0.625rem]">
-                <Clock />
-                <p className="mt-4 text-center max-w-[230px]">Tap the <span className="text-[#9E77ED]">+</span> sign below to create your first alert.</p>
-
-            </div>
+        <div className="bg-white rounded-xl w-full flex flex-col items-center justify-center p-[0.625rem]">
+            <Clock />
+            <p className="mt-4 text-center max-w-[230px]">Tap the <span className="text-[#9E77ED]">+</span> sign below to create your first alert.</p>
         </div>
     )
 }
@@ -34,6 +30,7 @@ export default function Homepage() {
         currentUser,
         userProfileName,
         hasSetAvatar,
+        avatarId,
         pwaPromptDismissed,
         alerts, // This is alerts: { active: [], previous: [] }
         showAlertInfo
@@ -41,6 +38,7 @@ export default function Homepage() {
         currentUser: state.currentUser,
         userProfileName: state.userProfileName,
         hasSetAvatar: state.hasSetAvatar,
+        avatarId: state.avatarId,
         pwaPromptDismissed: state.pwaPromptDismissed,
         alerts: state.alerts, // Get the whole alerts object
         showAlertInfo: state.showAlertInfo
@@ -164,11 +162,20 @@ export default function Homepage() {
             <div id="blurredBackground" className={`overflow-scroll relative dynamicHeight flex flex-col flex-grow p-[1.25rem] pb-12 w-full ${showAlertInfo ? 'blur-sm blurredBackground' : ''}`}>
                 <div className="bg-white border-[#EEF2F6] border-[0.5px] p-[2px] rounded-full flex w-full items-center justify-between">
                     <div className="flex gap-4 items-center">
-                        <i>
-                            <img
-                                src={hasSetAvatar && currentUser?.photoURL ? currentUser.photoURL : "/Avatars.svg"}
-                                className="h-[40px] w-[40px] rounded-full"
-                            />
+                        <i className="overflow-hidden rounded-full">
+                            {avatarId && hasSetAvatar ? (
+                                <img
+                                    src={`/avatar${avatarId}.png`}
+                                    alt="User Avatar"
+                                    className="h-[40px] w-[40px] rounded-full object-cover"
+                                />
+                            ) : (
+                                <img
+                                    src={currentUser?.photoURL || "/Avatars.svg"}
+                                    className="h-[40px] w-[40px] rounded-full"
+                                    alt="User Avatar"
+                                />
+                            )}
                         </i>
                         <div className="flex flex-col text-xs text-[#101828]">
                             <p>Welcome Back,</p>

@@ -27,6 +27,20 @@ const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const SplashScreen = lazy(() => import('./pages/auth/SplashScreen'));
 const SetupPWA = lazy(() => import('./pages/info/SetupPWA'));
 const EditAlert = lazy(() => import('./pages/home/EditAlert'));
+const ProfilePage = lazy(() => import('./pages/home/ProfilePage'));
+const ChangePasswordPage = lazy(() => import('./pages/home/ChangePasswordPage'));
+const NotificationsPage = lazy(() => import('./pages/home/NotificationsPage'));
+const AboutPage = lazy(() => import('./pages/home/AboutPage'));
+
+// Function to preload avatar images
+const preloadAvatarImages = () => {
+  // Preload all avatar images (1-6)
+  const totalAvatars = 6;
+  for (let i = 1; i <= totalAvatars; i++) {
+    const img = new Image();
+    img.src = `/avatar${i}.png`;
+  }
+};
 
 const App: React.FC = () => {
 
@@ -179,6 +193,50 @@ const App: React.FC = () => {
         </Suspense>
       ),
       errorElement: <ErrorPage />
+    },
+    {
+      path: '/profile',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <ProfilePage />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
+    },
+    {
+      path: '/change-password',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <ChangePasswordPage />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
+    },
+    {
+      path: '/notifications',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <NotificationsPage />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
+    },
+    {
+      path: '/about-us',
+      element: (
+        <Suspense fallback={<div className={loaderStyle}><PageLoader /></div>}>
+          <ProtectedRoutes>
+            <AboutPage />
+          </ProtectedRoutes>
+        </Suspense>
+      ),
+      errorElement: <ErrorPage />
     }
   ];
 
@@ -187,8 +245,14 @@ const App: React.FC = () => {
   const updateUser = useGeneralAppStore((state) => state.updateUser)
   const updateUserProfileName = useGeneralAppStore((state) => state.updateUserProfileName);
   const updateHasSetAvatar = useGeneralAppStore((state) => state.updateHasSetAvatar);
+  const updateAvatarId = useGeneralAppStore((state) => state.updateAvatarId);
   const updatePwaPromptDismissed = useGeneralAppStore((state) => state.updatePwaPromptDismissed);
   const setAuthLoading = useGeneralAppStore((state) => state.setAuthLoading);
+
+  // Preload all avatar images on app init
+  useEffect(() => {
+    preloadAvatarImages();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -200,7 +264,12 @@ const App: React.FC = () => {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             updateUserProfileName(userData.fullName || null);
-            updateHasSetAvatar(!!userData.avatarUrl);
+            updateHasSetAvatar(!!userData.avatarUrl || !!userData.avatarId || !!userData.hasSetAvatar);
+
+            // Update avatar ID and preload the specific avatar image
+            const avatarId = userData.avatarId || null;
+            updateAvatarId(avatarId);
+
             updatePwaPromptDismissed(!!userData.pwaPromptDismissed);
 
             if (userData.notificationsEnabled !== false) {
@@ -210,17 +279,20 @@ const App: React.FC = () => {
           } else {
             updateUserProfileName(null);
             updateHasSetAvatar(false);
+            updateAvatarId(null);
             updatePwaPromptDismissed(false);
           }
         } catch (error) {
           console.error("Error fetching user document from Firestore:", error);
           updateUserProfileName(null);
           updateHasSetAvatar(false);
+          updateAvatarId(null);
           updatePwaPromptDismissed(false);
         }
       } else {
         updateUserProfileName(null);
         updateHasSetAvatar(false);
+        updateAvatarId(null);
         updatePwaPromptDismissed(false);
       }
       setAuthLoading(false);
@@ -230,7 +302,7 @@ const App: React.FC = () => {
       unsubscribe();
       setAuthLoading(true);
     }
-  }, [updateUser, updateUserProfileName, updateHasSetAvatar, updatePwaPromptDismissed, setAuthLoading]);
+  }, [updateUser, updateUserProfileName, updateHasSetAvatar, updateAvatarId, updatePwaPromptDismissed, setAuthLoading]);
 
   return (
     <div className="bg-[#EEF2F6] flex items-center justify-center">
