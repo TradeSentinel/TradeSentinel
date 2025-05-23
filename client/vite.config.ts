@@ -11,7 +11,7 @@ export default defineConfig({
       devOptions: {
         enabled: true,
       },
-      workbox: { 
+      workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
         runtimeCaching: [
           {

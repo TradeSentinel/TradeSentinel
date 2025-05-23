@@ -1,6 +1,7 @@
 import { useGeneralAppStore, generalAlertType } from "../../utils/generalAppStore";
 import { LuDot } from "react-icons/lu";
 import { formatFirestoreTimestamp } from "../../utils/formatDate";
+import EmptyPreviousAlerts from "./EmptyPreviousAlerts";
 
 export default function PreviousAlerts() {
     const previousAlerts = useGeneralAppStore(state => state.alerts.previous);
@@ -13,11 +14,7 @@ export default function PreviousAlerts() {
     }
 
     if (previousAlerts.length === 0) {
-        return (
-            <div className="mt-6 text-center text-sm text-gray-500">
-                No previous alerts found.
-            </div>
-        );
+        return <EmptyPreviousAlerts />;
     }
 
     return (
@@ -40,8 +37,8 @@ export default function PreviousAlerts() {
                             <p className="text-xs text-[#697586]">{formatFirestoreTimestamp(alert.createdAt)}</p>
                             <span
                                 className={`text-xs px-2 py-0.5 rounded-full ${alert.status === 'triggered' ? 'bg-green-100 text-green-700' :
-                                        alert.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                            alert.status === 'paused' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}
+                                    alert.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                        alert.status === 'paused' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}
                                 `}
                             >
                                 {alert.status.charAt(0).toUpperCase() + alert.status.slice(1)}

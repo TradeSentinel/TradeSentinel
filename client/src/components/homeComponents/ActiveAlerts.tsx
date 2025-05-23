@@ -2,6 +2,7 @@ import { useGeneralAppStore } from "../../utils/generalAppStore"
 import { generalAlertType } from "../../utils/generalAppStore"
 import { LuDot } from "react-icons/lu";
 import { formatFirestoreTimestamp } from "../../utils/formatDate";
+import EmptyActiveAlerts from "./EmptyActiveAlerts";
 
 export default function ActiveAlerts() {
     const alerts = useGeneralAppStore(state => state.alerts.active)
@@ -14,11 +15,7 @@ export default function ActiveAlerts() {
     }
 
     if (alerts.length === 0) {
-        return (
-            <div className="mt-6 text-center text-sm text-gray-500">
-                No active alerts found.
-            </div>
-        );
+        return <EmptyActiveAlerts />;
     }
 
     return (

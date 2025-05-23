@@ -6,10 +6,10 @@ export default function HomeBottomNavbar({ path }: { path: string }) {
 
     return (
         <div className="flex items-center max-w-[600px] w-full">
-            <div className="bg-[#121926] p-[2px] flex items-center rounded-full w-full">
+            <div className="bg-[#121926] p-[4px] flex items-center rounded-full w-full">
                 <button
                     onClick={() => navigateTo('/dashboard')}
-                    className="rounded-full p-[2px] bg-[#121926] w-full flex items-center justify-start gap-3"
+                    className="rounded-full p-[4px] bg-[#121926] w-full flex items-center justify-start gap-3"
                 >
                     <div className={`p-3 rounded-full ${path === '/dashboard' ? 'bg-[#9E77ED]' : 'bg-white'}`}>
                         <i className="h-5 w-5">
@@ -21,10 +21,10 @@ export default function HomeBottomNavbar({ path }: { path: string }) {
                     <p className="text-white text-xs">Alerts</p>
                 </button>
             </div>
-            <div className="bg-[#121926] p-[2px] flex items-center w-3 h-5 mx-[-2px] curvedBox overflow-hidden">
+            <div className="bg-[#121926] p-[4px] flex items-center w-3 h-5 mx-[-2px] curvedBox overflow-hidden">
 
             </div>
-            <div className="bg-[#121926] p-[2px] flex items-center rounded-full ">
+            <div className="bg-[#121926] p-[4px] flex items-center rounded-full ">
                 <button
                     onClick={() => navigateTo('/create_alert')}
                     className="p-3 rounded-full bg-white"
@@ -36,13 +36,13 @@ export default function HomeBottomNavbar({ path }: { path: string }) {
                     </i>
                 </button>
             </div>
-            <div className="bg-[#121926] p-[2px] flex items-center w-3 h-5 mx-[-2px] curvedBox overflow-hidden">
+            <div className="bg-[#121926] p-[4px] flex items-center w-3 h-5 mx-[-2px] curvedBox overflow-hidden">
 
             </div>
-            <div className="bg-[#121926] p-[2px] flex items-center rounded-full w-full">
+            <div className="bg-[#121926] p-[4px] flex items-center rounded-full w-full">
                 <button
                     onClick={() => navigateTo("/account")}
-                    className="rounded-full p-[2px] bg-[#121926] w-full flex items-center flex-row-reverse gap-3">
+                    className="rounded-full p-[4px] bg-[#121926] w-full flex items-center flex-row-reverse gap-3">
                     <div className={`p-3 rounded-full ${path === '/account' ? 'bg-[#9E77ED]' : 'bg-white'}`}>
                         <i className="h-5 w-5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 12 16" fill="none">

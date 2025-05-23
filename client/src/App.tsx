@@ -13,7 +13,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./utils/firebaseInit";
 import { doc, getDoc } from "firebase/firestore";
 import { useGeneralAppStore } from "./utils/generalAppStore";
-// import { initializeFcmAndRegisterToken } from "./utils/fcmTokenRegistration";
+import { initializeFcmAndRegisterToken } from "./utils/fcmTokenRegistration";
 
 // Lazy-loaded components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -248,8 +248,9 @@ const App: React.FC = () => {
   const updateAvatarId = useGeneralAppStore((state) => state.updateAvatarId);
   const updatePwaPromptDismissed = useGeneralAppStore((state) => state.updatePwaPromptDismissed);
   const setAuthLoading = useGeneralAppStore((state) => state.setAuthLoading);
+  const initTopPairsWebSocket = useGeneralAppStore((state) => state.initTopPairsWebSocket);
+  const closeTopPairsWebSocket = useGeneralAppStore((state) => state.closeTopPairsWebSocket);
 
-  // Preload all avatar images on app init
   useEffect(() => {
     preloadAvatarImages();
   }, []);
@@ -258,6 +259,8 @@ const App: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       updateUser(currentUser);
       if (currentUser) {
+        initTopPairsWebSocket();
+
         const userDocRef = doc(db, "users", currentUser.uid);
         try {
           const userDoc = await getDoc(userDocRef);
@@ -265,18 +268,13 @@ const App: React.FC = () => {
             const userData = userDoc.data();
             updateUserProfileName(userData.fullName || null);
             updateHasSetAvatar(!!userData.avatarUrl || !!userData.avatarId || !!userData.hasSetAvatar);
-
-            // Update avatar ID and preload the specific avatar image
             const avatarId = userData.avatarId || null;
             updateAvatarId(avatarId);
-
             updatePwaPromptDismissed(!!userData.pwaPromptDismissed);
-
-            // Only check the flag, don't automatically request permissions
-            // if (userData.notificationsEnabled !== false) {
-            //   initializeFcmAndRegisterToken()
-            //     .catch(error => console.error('Error initializing FCM:', error));
-            // }
+            if (userData.notificationsEnabled !== false) {
+              initializeFcmAndRegisterToken()
+                .catch(error => console.error('Error initializing FCM during auto-registration:', error));
+            }
           } else {
             updateUserProfileName(null);
             updateHasSetAvatar(false);
@@ -291,6 +289,7 @@ const App: React.FC = () => {
           updatePwaPromptDismissed(false);
         }
       } else {
+        closeTopPairsWebSocket();
         updateUserProfileName(null);
         updateHasSetAvatar(false);
         updateAvatarId(null);
@@ -301,14 +300,14 @@ const App: React.FC = () => {
 
     return () => {
       unsubscribe();
+      closeTopPairsWebSocket();
       setAuthLoading(true);
     }
-  }, [updateUser, updateUserProfileName, updateHasSetAvatar, updateAvatarId, updatePwaPromptDismissed, setAuthLoading]);
+  }, [updateUser, updateUserProfileName, updateHasSetAvatar, updateAvatarId, updatePwaPromptDismissed, setAuthLoading, initTopPairsWebSocket, closeTopPairsWebSocket]);
 
   return (
     <div className="bg-[#EEF2F6] flex items-center justify-center">
       <div
-        // ref={containerRef}
         className="max-w-[600px] w-full dynamicHeight font-ibm flex flex-col pt-8"
       >
         <ToastContainer />

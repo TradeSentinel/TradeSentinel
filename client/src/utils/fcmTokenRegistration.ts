@@ -85,29 +85,75 @@ export const registerFcmToken = async (): Promise<boolean> => {
         return false;
     }
 
+    tokenRegistrationInProgress = true; // Set flag early to prevent concurrent calls
+
     try {
         // Get the current user
         const user = auth.currentUser;
         if (!user) {
             console.error('No authenticated user found');
+            tokenRegistrationInProgress = false;
             return false;
         }
 
+        // Ensure the service worker is ready before attempting to get a token
+        if (!navigator.serviceWorker.controller) {
+            console.log('Service worker not yet controlling the page. Waiting for it to be ready...');
+            try {
+                // Wait for the service worker to be ready, with a timeout
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout waiting for service worker to be ready.'));
+                    }, 10000); // 10-second timeout
+
+                    navigator.serviceWorker.ready.then((registration) => {
+                        clearTimeout(timeout);
+                        if (registration.active) {
+                            console.log('Service worker is active and ready.');
+                            resolve(registration);
+                        } else {
+                            reject(new Error('Service worker registered but not active.'));
+                        }
+                    }).catch(err => {
+                        clearTimeout(timeout);
+                        reject(err);
+                    });
+                });
+            } catch (swError) {
+                console.error('Error waiting for service worker:', swError);
+                toast.error('Service worker issue. Could not initialize notifications. Please refresh or try again.', {
+                    position: "top-right",
+                    autoClose: 4000,
+                    theme: "light"
+                });
+                tokenRegistrationInProgress = false;
+                return false;
+            }
+        } else {
+            console.log('Service worker is already controlling the page.');
+        }
+
         // Get the FCM token
+        console.log('Attempting to get FCM token...');
         const messaging = getMessaging();
         const fcmToken = await getToken(messaging, {
             vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
         });
 
         if (!fcmToken) {
-            console.error('No FCM token available');
+            console.error('No FCM token available after waiting for service worker.');
+            toast.error('Could not get notification token. Please try again.', {
+                position: "top-right",
+                autoClose: 3000,
+                theme: "light"
+            });
+            tokenRegistrationInProgress = false;
             return false;
         }
 
         console.log('FCM token obtained:', fcmToken);
 
         // Connect to the WebSocket server
-        tokenRegistrationInProgress = true;
         const ws = await connectToWebSocketServer();
 
         // Send the token to the server
@@ -120,18 +166,27 @@ export const registerFcmToken = async (): Promise<boolean> => {
         ws.send(JSON.stringify(message));
         console.log('Sent FCM token registration message');
 
-        // Success will be determined by the WebSocket response handled in onmessage
+        // Success is now more dependent on the WebSocket response handled in onmessage
+        // For the purpose of this function, returning true indicates the message was *sent*.
+        // The actual registration success is logged by the onmessage handler.
+        // tokenRegistrationInProgress will be set to false by the WebSocket response handler.
         return true;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error registering FCM token:', error);
-        toast.error('Failed to register for notifications. Please try again later.', {
+        let errorMessage = 'Failed to register for notifications. Please try again later.';
+        if (error.name === 'AbortError' || error.message.includes('no active Service Worker')) {
+            errorMessage = 'Notification setup failed: No active Service Worker. Please refresh and try again.';
+        }
+        toast.error(errorMessage, {
             position: "top-right",
-            autoClose: 3000,
+            autoClose: 4000,
             theme: "light"
         });
         tokenRegistrationInProgress = false;
         return false;
     }
+    // Note: tokenRegistrationInProgress is primarily reset by the WebSocket onmessage handler upon server response.
+    // However, it's also reset in error paths within this function.
 };
 
 /**

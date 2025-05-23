@@ -34,9 +34,9 @@ messaging.onBackgroundMessage((payload) => {
         icon: '/sentinel_logo.png'
     };
 
-    // TEMPORARILY COMMENT OUT showNotification
-    // self.registration.showNotification(notificationTitle, notificationOptions);
-    console.log('[firebase-messaging-sw.js] showNotification SKIPPED for this test.');
+    // Ensure showNotification is active
+    self.registration.showNotification(notificationTitle, notificationOptions);
+    // console.log('[firebase-messaging-sw.js] showNotification SKIPPED for this test.'); // This line should be commented out for notifications to show
 });
 
 // If you want to handle notification clicks, you can add a listener for it:

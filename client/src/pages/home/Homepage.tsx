@@ -7,7 +7,7 @@ import AlertInfoToShow from "../../components/homeComponents/AlertInfoToShow";
 import TopPairs from "../../components/homeComponents/TopPairs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../utils/firebaseInit";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { Clock, Person } from "../../components/Icons";
 import { toast } from 'react-toastify';
 
@@ -57,57 +57,54 @@ export default function Homepage() {
         navigateTo("/setup_pwa");
     };
 
-    // Fetch alerts from Firestore
+    // Fetch alerts from Firestore using onSnapshot for real-time updates
     useEffect(() => {
         if (!currentUser) {
-            updateActiveAlerts([]); // Clear alerts if no user
+            updateActiveAlerts([]);
             updatePreviousAlerts([]);
-            return;
+            return () => { }; // Return an empty unsubscribe function if no user
         }
 
         const alertsCollectionRef = collection(db, "users", currentUser.uid, "alerts");
+        let unsubscribeActive: Unsubscribe = () => { };
+        let unsubscribePrevious: Unsubscribe = () => { };
 
-        // Fetch Active Alerts
-        const fetchActiveAlerts = async () => {
-            const qActive = query(
-                alertsCollectionRef,
-                where("status", "in", ["active", "paused"]),
-                orderBy("createdAt", "desc"),
-                limit(10)
-            );
-            try {
-                const querySnapshot = await getDocs(qActive);
-                const activeAlertsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any)); // Cast to any for now
-                updateActiveAlerts(activeAlertsData);
-            } catch (error) {
-                console.error("Error fetching active alerts: ", error);
-                toast("Could not fetch active alerts.", { type: "error" });
-            }
+        // Listener for Active Alerts
+        const qActive = query(
+            alertsCollectionRef,
+            where("status", "in", ["active", "paused"]),
+            orderBy("createdAt", "desc"),
+            limit(10)
+        );
+        unsubscribeActive = onSnapshot(qActive, (querySnapshot) => {
+            const activeAlertsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+            updateActiveAlerts(activeAlertsData);
+        }, (error) => {
+            console.error("Error fetching active alerts with onSnapshot: ", error);
+            toast("Could not fetch active alerts in real-time.", { type: "error" });
+        });
+
+        // Listener for Previous Alerts
+        const qPrevious = query(
+            alertsCollectionRef,
+            where("status", "in", ["triggered", "cancelled"]),
+            orderBy("createdAt", "desc"),
+            limit(5)
+        );
+        unsubscribePrevious = onSnapshot(qPrevious, (querySnapshot) => {
+            const previousAlertsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+            updatePreviousAlerts(previousAlertsData);
+        }, (error) => {
+            console.error("Error fetching previous alerts with onSnapshot: ", error);
+            toast("Could not fetch previous alerts in real-time.", { type: "error" });
+        });
+
+        // Cleanup function to unsubscribe from listeners when component unmounts or currentUser changes
+        return () => {
+            console.log("Unsubscribing from Firestore alert listeners");
+            unsubscribeActive();
+            unsubscribePrevious();
         };
-
-        // Fetch Previous Alerts
-        const fetchPreviousAlerts = async () => {
-            const qPrevious = query(
-                alertsCollectionRef,
-                where("status", "in", ["triggered", "cancelled"]),
-                orderBy("createdAt", "desc"),
-                limit(5)
-            );
-            try {
-                const querySnapshot = await getDocs(qPrevious);
-                const previousAlertsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any)); // Cast to any for now
-                updatePreviousAlerts(previousAlertsData);
-            } catch (error) {
-                console.error("Error fetching previous alerts: ", error);
-                toast("Could not fetch previous alerts.", { type: "error" });
-            }
-        };
-
-        fetchActiveAlerts();
-        fetchPreviousAlerts();
-
-        // Consider adding a listener for real-time updates if needed (onSnapshot)
-        // For now, this fetches once when currentUser changes.
 
     }, [currentUser, updateActiveAlerts, updatePreviousAlerts]);
 
@@ -213,14 +210,14 @@ export default function Homepage() {
                         </div>
                     </div>
                 )}
-                <div className="mt-8 flex-grow flex overflow-scroll scrollbarHidden pb-16">
+                <div className="mt-8 flex-grow flex flex-col overflow-scroll scrollbarHidden pb-16">
                     {alerts.active.length === 0 && alerts.previous.length === 0 ?
                         <CreateFirstAlert /> :
                         <div className="flex flex-col overflow-y-scroll scrollbarHidden w-full">
                             <Alerts />
-                            <TopPairs />
                         </div>
                     }
+                    <TopPairs />
                 </div>
                 <div className="fixed bottom-12 flex items-center justify-center w-full inset-x-0 px-[1.25rem]">
                     <HomeBottomNavbar path={location.pathname} />
