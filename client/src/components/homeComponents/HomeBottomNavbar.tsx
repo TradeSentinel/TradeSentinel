@@ -9,7 +9,7 @@ export default function HomeBottomNavbar({ path }: { path: string }) {
             <div className="bg-[#121926] p-[4px] flex items-center rounded-full w-full">
                 <button
                     onClick={() => navigateTo('/dashboard')}
-                    className="rounded-full p-[4px] bg-[#121926] w-full flex items-center justify-start gap-3"
+                    className="rounded-full bg-[#121926] w-full flex items-center justify-start gap-3"
                 >
                     <div className={`p-3 rounded-full ${path === '/dashboard' ? 'bg-[#9E77ED]' : 'bg-white'}`}>
                         <i className="h-5 w-5">
@@ -42,7 +42,7 @@ export default function HomeBottomNavbar({ path }: { path: string }) {
             <div className="bg-[#121926] p-[4px] flex items-center rounded-full w-full">
                 <button
                     onClick={() => navigateTo("/account")}
-                    className="rounded-full p-[4px] bg-[#121926] w-full flex items-center flex-row-reverse gap-3">
+                    className="rounded-full  bg-[#121926] w-full flex items-center flex-row-reverse gap-3">
                     <div className={`p-3 rounded-full ${path === '/account' ? 'bg-[#9E77ED]' : 'bg-white'}`}>
                         <i className="h-5 w-5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 12 16" fill="none">

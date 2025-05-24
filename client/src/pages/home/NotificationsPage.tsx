@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PageHeader from '../../components/homeComponents/PageHeader';
 import { requestNotificationPermission } from "../../utils/requestPermission";
 import { useNavigate } from 'react-router-dom';
+import MiniLoader from '../../components/MiniLoader';
 
 const NotificationsPage: React.FC = () => {
-
+    const [permissionRequestLoading, setPermissionRequestLoading] = useState(false);
     const navigateTo = useNavigate();
     const goBack = () => navigateTo(-1);
+
+    const handleEnableNotifications = async () => {
+        setPermissionRequestLoading(true);
+        try {
+            await requestNotificationPermission();
+            // Optionally, navigate away or show a success message specific to this page
+            // For now, requestNotificationPermission handles its own toasts
+        } catch (error) {
+            // Error is already handled by requestNotificationPermission's toasts
+            console.error("Error during requestNotificationPermission from NotificationsPage:", error);
+        } finally {
+            setPermissionRequestLoading(false);
+        }
+    };
 
     return (
         <div className="overflow-scroll dynamicHeight flex flex-col justify-between flex-grow p-[1.25rem] pb-12 w-full">
@@ -28,14 +43,16 @@ const NotificationsPage: React.FC = () => {
                     <button
                         onClick={goBack}
                         className="text-[#697586] font-medium leading-6 w-full py-3"
+                        disabled={permissionRequestLoading}
                     >
                         No, thanks
                     </button>
                     <button
-                        onClick={requestNotificationPermission}
-                        className="w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9] flex items-center justify-center"
+                        onClick={handleEnableNotifications}
+                        disabled={permissionRequestLoading}
+                        className="w-full py-[0.625rem] font-medium px-[1.125rem] text-white rounded-full bg-[#7F56D9] flex items-center justify-center disabled:opacity-70"
                     >
-                        Enable Push Notifications
+                        {permissionRequestLoading ? <MiniLoader /> : "Enable Push Notifications"}
                     </button>
                 </div>
             </div>

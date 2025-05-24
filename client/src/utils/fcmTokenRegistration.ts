@@ -87,6 +87,10 @@ export const registerFcmToken = async (): Promise<boolean> => {
 
     tokenRegistrationInProgress = true; // Set flag early to prevent concurrent calls
 
+    if (!auth.currentUser) {
+        throw new Error("User not logged in. Cannot register FCM token.");
+    }
+
     try {
         // Get the current user
         const user = auth.currentUser;
@@ -136,57 +140,48 @@ export const registerFcmToken = async (): Promise<boolean> => {
         // Get the FCM token
         console.log('Attempting to get FCM token...');
         const messaging = getMessaging();
-        const fcmToken = await getToken(messaging, {
-            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+        const swRegistration = await navigator.serviceWorker.ready;
+        let fcmToken = await getToken(messaging, {
+            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+            serviceWorkerRegistration: swRegistration
         });
 
-        if (!fcmToken) {
-            console.error('No FCM token available after waiting for service worker.');
-            toast.error('Could not get notification token. Please try again.', {
-                position: "top-right",
-                autoClose: 3000,
-                theme: "light"
-            });
+        if (fcmToken) {
+            console.log('FCM token obtained:', fcmToken);
+            // After obtaining the token, connect to WebSocket and send it
+            const socket = await connectToWebSocketServer();
+            // Send the token to the server
+            const message = {
+                type: 'register_token',
+                userId: user.uid,
+                fcmToken: fcmToken
+            };
+            socket.send(JSON.stringify(message));
+            console.log('Sent FCM token registration message');
             tokenRegistrationInProgress = false;
-            return false;
+            return true; // Successfully obtained and initiated sending of token
+        } else {
+            console.warn('No FCM registration token available. User may need to grant permission or token generation failed silently.');
+            tokenRegistrationInProgress = false;
+            throw new Error('Failed to obtain FCM token. Permission might not be granted or token generation failed.');
         }
-
-        console.log('FCM token obtained:', fcmToken);
-
-        // Connect to the WebSocket server
-        const ws = await connectToWebSocketServer();
-
-        // Send the token to the server
-        const message = {
-            type: 'register_token',
-            userId: user.uid,
-            fcmToken: fcmToken
-        };
-
-        ws.send(JSON.stringify(message));
-        console.log('Sent FCM token registration message');
-
-        // Success is now more dependent on the WebSocket response handled in onmessage
-        // For the purpose of this function, returning true indicates the message was *sent*.
-        // The actual registration success is logged by the onmessage handler.
-        // tokenRegistrationInProgress will be set to false by the WebSocket response handler.
-        return true;
     } catch (error: any) {
-        console.error('Error registering FCM token:', error);
-        let errorMessage = 'Failed to register for notifications. Please try again later.';
-        if (error.name === 'AbortError' || error.message.includes('no active Service Worker')) {
-            errorMessage = 'Notification setup failed: No active Service Worker. Please refresh and try again.';
-        }
-        toast.error(errorMessage, {
-            position: "top-right",
-            autoClose: 4000,
-            theme: "light"
-        });
+        console.error('Error during FCM token acquisition or initial WebSocket send:', error);
         tokenRegistrationInProgress = false;
-        return false;
+        let specificMessage = 'Failed to get or send notification token.';
+
+        if (error.name === 'AbortError') {
+            specificMessage = 'Subscription failed: No active Service Worker. Please ensure permissions are granted and try again.';
+        } else if (error.code && typeof error.code === 'string' && error.code.includes('messaging/')) {
+            specificMessage = `Firebase messaging error: ${error.message}`;
+        } else if (error.message) {
+            specificMessage = error.message; // Covers WebSocket connection errors that make it here
+        }
+
+        const errToThrow = new Error(specificMessage);
+        (errToThrow as any).originalError = error;
+        throw errToThrow;
     }
-    // Note: tokenRegistrationInProgress is primarily reset by the WebSocket onmessage handler upon server response.
-    // However, it's also reset in error paths within this function.
 };
 
 /**

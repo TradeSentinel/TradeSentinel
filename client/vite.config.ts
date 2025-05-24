@@ -13,6 +13,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        importScripts: ['firebase-messaging-sw.js'],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'image',
