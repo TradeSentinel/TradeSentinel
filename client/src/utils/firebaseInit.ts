@@ -23,7 +23,6 @@ const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
 export const initializeFirebaseMessaging = async () => {
     try {
         const token = await getToken(messaging, { vapidKey: 'BGaOGL6Kc9p6FFJxg8FXRhn3yP6wKKjubT1O0jI39X6ILbfAwPpFrJkufJ6CFhPZEm0dONmenLi0smyeCAb1bEM' });
@@ -37,3 +36,4 @@ export const initializeFirebaseMessaging = async () => {
         console.error('Error getting FCM token', error);
     }
 };
+

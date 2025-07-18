@@ -310,22 +310,30 @@ function isAlertTriggered(alert: Alert, priceUpdate: { ask: string, bid: string 
     if (alert.alertType === 'Price rises above' && currentAsk > triggerPrice) {
         console.log(`[isAlertTriggered] 'Price rises above' TRIGGERED for alert ${alert.id}. Ask (${currentAsk}) > Trigger (${triggerPrice})`);
         return true;
-    } else if (alert.alertType === 'Price falls below' && currentBid < triggerPrice) {
+    }
+
+    if (alert.alertType === 'Price falls below' && currentBid < triggerPrice) {
         console.log(`[isAlertTriggered] 'Price falls below' TRIGGERED for alert ${alert.id}. Bid (${currentBid}) < Trigger (${triggerPrice})`);
         return true;
-    } else if (alert.alertType === 'Price reaching' && (currentBid >= triggerPrice || currentAsk <= triggerPrice)) {
-        // If Bid is already >= trigger, it means buyers are willing to pay at or above your price.
-        // If Ask is already <= trigger, it means sellers are willing to sell at or below your price.
-        let reason = "";
-        if (currentBid >= triggerPrice && currentAsk <= triggerPrice) {
-            reason = `Bid (${currentBid}) >= Trigger (${triggerPrice}) AND Ask (${currentAsk}) <= Trigger (${triggerPrice}) (Spread crossed target)`;
-        } else if (currentBid >= triggerPrice) {
-            reason = `Bid (${currentBid}) >= Trigger (${triggerPrice})`;
-        } else if (currentAsk <= triggerPrice) {
-            reason = `Ask (${currentAsk}) <= Trigger (${triggerPrice})`;
+    }
+
+    if (alert.alertType === 'Price reaching') {
+        /* Direction-aware logic: trigger only once price moves to the level
+           from the correct side. */
+
+        if (triggerPrice > currentAsk) {
+            // Trigger is above market – wait for bid to climb up to it
+            if (currentBid >= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED for alert ${alert.id}. Reason: Bid (${currentBid}) >= Trigger (${triggerPrice}) [price moved UP]`);
+                return true;
+            }
+        } else if (triggerPrice < currentBid) {
+            // Trigger is below market – wait for ask to fall down to it
+            if (currentAsk <= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED for alert ${alert.id}. Reason: Ask (${currentAsk}) <= Trigger (${triggerPrice}) [price moved DOWN]`);
+                return true;
+            }
         }
-        console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED for alert ${alert.id}. Reason: ${reason}`);
-        return true;
     }
 
     return false;
