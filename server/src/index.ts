@@ -307,39 +307,48 @@ function isAlertTriggered(alert: Alert, priceUpdate: { ask: string, bid: string 
     }
 
     // Updated logic based on user feedback
-    if (alert.alertType === 'Price rises above' && currentAsk > triggerPrice) {
-        console.log(`[isAlertTriggered] 'Price rises above' TRIGGERED for alert ${alert.id}. Ask (${currentAsk}) > Trigger (${triggerPrice})`);
+    if (alert.alertType === 'Price rising above' && currentAsk > triggerPrice) {
+        console.log(`[isAlertTriggered] 'Price rising above' TRIGGERED for alert ${alert.id}. Ask (${currentAsk}) > Trigger (${triggerPrice})`);
         return true;
     }
 
-    if (alert.alertType === 'Price falls below' && currentBid < triggerPrice) {
-        console.log(`[isAlertTriggered] 'Price falls below' TRIGGERED for alert ${alert.id}. Bid (${currentBid}) < Trigger (${triggerPrice})`);
+    if (alert.alertType === 'Price dropping below' && currentBid < triggerPrice) {
+        console.log(`[isAlertTriggered] 'Price dropping below' TRIGGERED for alert ${alert.id}. Bid (${currentBid}) < Trigger (${triggerPrice})`);
         return true;
     }
 
     if (alert.alertType === 'Price reaching') {
         /*
-           The original logic had a flaw: it only checked for triggers when the
-           trigger price was completely outside the bid-ask spread. It missed
-           the case where the trigger is *inside* the spread.
-
-           The corrected logic handles all cases by checking for two conditions independently:
-           1. Has the bid price risen to the trigger level? (Market moving up)
-           2. Has the ask price fallen to the trigger level? (Market moving down)
+            This is the definitive logic for 'Price reaching', handling three cases:
+            1. The trigger price is above the market (higher than the ask).
+            2. The trigger price is below the market (lower than the bid).
+            3. The trigger price is inside the current bid-ask spread.
         */
 
-        // Check if the market has moved UP to the trigger price.
-        // This is true if the bid (the highest price a buyer will pay) reaches or exceeds the trigger.
-        if (currentBid >= triggerPrice) {
-            console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED for alert ${alert.id}. Reason: Bid (${currentBid}) >= Trigger (${triggerPrice}) [price moved UP]`);
-            return true;
+        // Case 1: Trigger is above the current market. We only watch for the price to move UP.
+        if (triggerPrice > currentAsk) {
+            if (currentBid >= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED. Reason: Trigger was above market, Bid (${currentBid}) rose to >= Trigger (${triggerPrice})`);
+                return true;
+            }
         }
-
-        // Check if the market has moved DOWN to the trigger price.
-        // This is true if the ask (the lowest price a seller will accept) reaches or is lower than the trigger.
-        if (currentAsk <= triggerPrice) {
-            console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED for alert ${alert.id}. Reason: Ask (${currentAsk}) <= Trigger (${triggerPrice}) [price moved DOWN]`);
-            return true;
+        // Case 2: Trigger is below the current market. We only watch for the price to move DOWN.
+        else if (triggerPrice < currentBid) {
+            if (currentAsk <= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED. Reason: Trigger was below market, Ask (${currentAsk}) fell to <= Trigger (${triggerPrice})`);
+                return true;
+            }
+        }
+        // Case 3: Trigger is inside the bid-ask spread. Price can hit it from either direction.
+        else { // This covers `currentBid <= triggerPrice <= currentAsk`
+            if (currentBid >= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED. Reason: Trigger was inside spread, Bid (${currentBid}) >= Trigger (${triggerPrice})`);
+                return true;
+            }
+            if (currentAsk <= triggerPrice) {
+                console.log(`[isAlertTriggered] 'Price reaching' TRIGGERED. Reason: Trigger was inside spread, Ask (${currentAsk}) <= Trigger (${triggerPrice})`);
+                return true;
+            }
         }
     }
 
