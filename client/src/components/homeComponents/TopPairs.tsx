@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
+import { Refresh } from "../Icons";
 
 // initialTopPairs is now primarily for mapping display names if needed, actual data comes from store
 const initialTopPairs = [
@@ -14,14 +15,23 @@ export default function TopPairs() {
     const alertInfo = useGeneralAppStore(state => state.newAlert);
     const updateNewAlert = useGeneralAppStore(state => state.updateNewAlert);
     const topPairsLivePrices = useGeneralAppStore(state => state.topPairsLivePrices);
+    const reconnectWebSocket = useGeneralAppStore(state => state.reconnectTopPairsWebSocket);
     // Removed initTopPairsWebSocket call from here, will be in App.tsx
 
     // No local WebSocket logic needed here anymore
 
     return (
         <div className="mt-10">
-            {/* Removed WebSocket status badge from here */}
-            <h4 className="font-semibold text-[#101828] leading-6">Top Currency Pairs</h4>
+            <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-[#101828] leading-6">Top Currency Pairs</h4>
+                <button
+                    onClick={() => reconnectWebSocket()}
+                    className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                    aria-label="Refresh live prices"
+                >
+                    <Refresh />
+                </button>
+            </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
                 {initialTopPairs.map((pair, index) => {
                     const liveData = topPairsLivePrices[pair.name];

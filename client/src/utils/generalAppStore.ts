@@ -60,7 +60,8 @@ export type Actions = {
   updateAlertInLists: (updatedAlert: generalAlertType) => void,
   updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null }) => void,
   initTopPairsWebSocket: () => void,
-  closeTopPairsWebSocket: () => void
+  closeTopPairsWebSocket: () => void,
+  reconnectTopPairsWebSocket: () => void
 }
 
 export const useGeneralAppStore = create<State & Actions>((set, get) => ({
@@ -275,5 +276,14 @@ export const useGeneralAppStore = create<State & Actions>((set, get) => ({
     initialTopPairsList.forEach(pair => {
       get().updateTopPairLivePrice(pair.name, { ask: '-', bid: '-', timestamp: null });
     });
+  },
+  reconnectTopPairsWebSocket: () => {
+    console.log('[Store reconnectTopPairsWebSocket] User requested WebSocket reconnect.');
+    get().closeTopPairsWebSocket();
+    // A slight delay can be useful to allow the 'close' operation to complete fully
+    // before the 'init' operation begins, preventing potential race conditions.
+    setTimeout(() => {
+      get().initTopPairsWebSocket();
+    }, 100);
   }
 }));
