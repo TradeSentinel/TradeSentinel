@@ -5,7 +5,7 @@ import { db } from '../../utils/firebaseInit';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import MiniLoader from '../../components/MiniLoader';
-import { GreenCheckMark, Pencil, User } from '../../components/Icons';
+import { GreenCheckMark, SmallPencil, User } from '../../components/Icons';
 import AvatarSelectionModal from '../../components/AvatarSelectionModal';
 
 const ProfilePage: React.FC = () => {
@@ -164,12 +164,12 @@ const ProfilePage: React.FC = () => {
                     {/* Avatar Section */}
                     <div className="flex justify-center mb-8">
                         <div className="relative">
-                            <div className="bg-white w-[80px] h-[80px] rounded-full flex items-center justify-center overflow-hidden">
+                            <div className="bg-white w-[64px] h-[64px] rounded-full flex items-center justify-center overflow-hidden border-[2px] border-[#ffffff]">
                                 {displayAvatarId ? (
                                     <img
                                         src={`/avatar${displayAvatarId}.svg`}
                                         alt="User Avatar"
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full"
                                     />
                                 ) : (
                                     <User />
@@ -177,9 +177,9 @@ const ProfilePage: React.FC = () => {
                             </div>
                             <div
                                 onClick={toggleAvatarModal}
-                                className="absolute bottom-[0px] right-0 bg-white rounded-full p-2 shadow-md cursor-pointer"
+                                className="absolute bottom-[-4px] right-0 bg-white rounded-full p-1 shadow-md cursor-pointer"
                             >
-                                <Pencil />
+                                <SmallPencil />
                             </div>
                         </div>
                     </div>

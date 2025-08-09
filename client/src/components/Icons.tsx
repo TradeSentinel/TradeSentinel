@@ -24,6 +24,14 @@ export function Pencil() {
     )
 }
 
+export function SmallPencil() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="13" viewBox="0 0 12 13" fill="none">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M11.3258 0.794176C10.6002 0.068607 9.42381 0.0686087 8.69824 0.794177L7.76158 1.73084L10.3894 4.35803L11.3258 3.42169C12.0513 2.69612 12.0513 1.51974 11.3258 0.794176ZM9.68157 5.06588L7.05439 2.43803L1.06124 8.43118C0.687544 8.80487 0.434869 9.28232 0.33604 9.80148L0.0532279 11.2871C-0.0347432 11.7493 0.370677 12.1547 0.832803 12.0667L2.31845 11.7839C2.83762 11.6851 3.31506 11.4324 3.68876 11.0587L9.68157 5.06588Z" fill="#202939" />
+        </svg>
+    )
+}
+
 export function Person() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">

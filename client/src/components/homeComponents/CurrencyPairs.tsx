@@ -83,7 +83,6 @@ export default function CurrencyPairs({ setShowModals }: {
                                 placeholder="Search for a pair"
                                 className="w-full bg-[#F8FAFC] text-[#121926] pl-10 pr-10 py-[10px] rounded-xl outline-none border-[0.5px] border-[#E3E8EF] focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent"
                                 type="text"
-                                autoFocus
                                 aria-label="Search currency pairs"
                             />
                             {searchTerm !== "" && (
