@@ -9,6 +9,10 @@ const initialTopPairsList = [
   { name: 'GBP/USD' },
   { name: 'AUD/USD' },
   { name: 'USD/CHF' },
+  // Crypto
+  { name: 'BTC/USD' },
+  { name: 'ETH/USD' },
+  { name: 'LTC/USD' },
 ];
 
 export type generalAlertType = {

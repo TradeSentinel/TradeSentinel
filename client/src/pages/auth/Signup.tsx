@@ -28,7 +28,7 @@ export default function Signup() {
     const { fullName, email, password } = userInfo
 
     const actionCodeSettings: ActionCodeSettings = {
-        url: import.meta.env.VITE_EMAIL_VERIFICATION_REDIRECT_URL || 'http://localhost:5173/email-verified',
+        url: import.meta.env.VITE_EMAIL_VERIFICATION_REDIRECT_URL || 'http://localhost:5173/email_verified',
         handleCodeInApp: true,
     };
 

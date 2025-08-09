@@ -7,7 +7,11 @@ const initialTopPairs = [
     { name: 'EUR/USD', defaultPrice: '-' },
     { name: 'GBP/USD', defaultPrice: '-' },
     { name: 'AUD/USD', defaultPrice: '-' },
-    { name: 'USD/CHF', defaultPrice: '-' },
+    // { name: 'USD/CHF', defaultPrice: '-' },
+    // Crypto
+    { name: 'BTC/USD', defaultPrice: '-' },
+    // { name: 'ETH/USD', defaultPrice: '-' },
+    // { name: 'LTC/USD', defaultPrice: '-' },
 ];
 
 export default function TopPairs() {

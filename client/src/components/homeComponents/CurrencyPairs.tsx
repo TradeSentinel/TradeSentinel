@@ -15,6 +15,7 @@ export default function CurrencyPairs({ setShowModals }: {
     const [isClosing, setIsClosing] = useState(false);
 
     const pairs = [
+        // Fiat majors
         'EUR/USD',
         'USD/JPY',
         'GBP/USD',
@@ -22,7 +23,11 @@ export default function CurrencyPairs({ setShowModals }: {
         'AUD/USD',
         'USD/CAD',
         'NZD/USD',
-        'EUR/GBP'
+        'EUR/GBP',
+        // Crypto
+        'BTC/USD',
+        'ETH/USD',
+        'LTC/USD'
     ];
 
     const handleClose = () => {
@@ -59,11 +64,13 @@ export default function CurrencyPairs({ setShowModals }: {
 
     return (
         <div className="fixed inset-0 modal-backdrop bg-black bg-opacity-50 flex items-end justify-center z-40">
-            <div className={`flex flex-col w-full bg-[#FCFCFD] rounded-t-[1.25rem] max-w-[600px] pb-4 ${isClosing ? 'slide-down-animation' : 'slide-up-animation'} shadow-2xl`}>
-                <div className="w-full flex flex-col items-center py-8 px-5">
+            <div className={`flex flex-col w-full bg-[#FCFCFD] rounded-t-[1.25rem] max-w-[600px] h-[500px] ${isClosing ? 'slide-down-animation' : 'slide-up-animation'} shadow-2xl`}>
+                <div className="w-full px-5 pt-8">
                     <div className="w-full flex items-center flex-col border-b-[#EEF2F6] border-b-[1px]">
                         <h5 className="text-[#121926] py-3 font-medium text-[1.125rem]">Currency Pair</h5>
                     </div>
+                </div>
+                <div className="w-full flex-1 overflow-y-auto px-5">
                     {pairs.map((pair, index) => (
                         <button
                             key={index}

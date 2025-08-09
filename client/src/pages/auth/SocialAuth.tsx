@@ -44,7 +44,7 @@ export default function SocialAuth() {
             }
 
             updateUser(user);
-            // No need to navigate to /verify-email for social auth if email is already verified
+            // No need to navigate to /verify_email for social auth if email is already verified
             if (user.emailVerified) {
                 toast("Signed in with Google successfully!", {
                     position: "top-right",
@@ -63,7 +63,7 @@ export default function SocialAuth() {
                 // Decide if you want to sign them out or let them proceed to a limited state
                 // For now, we'll let them be in the app but they might be restricted by other logic
                 // that checks for emailVerified on the user object directly.
-                navigateTo("/verify-email"); // Or a specific page for unverified social accounts
+                navigateTo("/verify_email"); // Or a specific page for unverified social accounts
             }
         } catch (error: any) {
             console.error("Google Sign-In Error:", error);

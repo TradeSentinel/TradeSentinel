@@ -50,7 +50,7 @@ export default function Login() {
                 });
                 await signOut(auth);
                 updateUser(null);
-                navigateTo("/verify-email");
+                navigateTo("/verify_email");
             }
         } catch (error: any) {
             console.error('Error signing in:', error);
