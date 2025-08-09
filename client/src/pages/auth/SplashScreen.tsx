@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useGeneralAppStore } from "../../utils/generalAppStore";
 import PageLoader from "../../components/PageLoader";
 
 const SplashScreen: React.FC = () => {
     const navigateTo = useNavigate();
     const [isBgLoaded, setIsBgLoaded] = useState(false);
+    const currentUser = useGeneralAppStore((state) => state.currentUser);
+    const authLoading = useGeneralAppStore((state) => state.authLoading);
 
     useEffect(() => {
         const handleTouchMove = (e: TouchEvent) => {
@@ -29,13 +32,24 @@ const SplashScreen: React.FC = () => {
         };
     }, []);
 
-    if (!isBgLoaded) {
+    // If we're still resolving auth, show loader
+    if (authLoading) {
         // You can return a loader here, or null if you prefer a blank screen until loaded
         return (
             <div className="dynamicHeight w-full flex items-center justify-center">
                 <PageLoader />
             </div>
         )
+    }
+
+    // If user is already signed in and background ready (avoid flicker), go straight to dashboard
+    if (currentUser && isBgLoaded) {
+        navigateTo("/dashboard", { replace: true });
+        return (
+            <div className="dynamicHeight w-full flex items-center justify-center">
+                <PageLoader />
+            </div>
+        );
     }
 
     return (

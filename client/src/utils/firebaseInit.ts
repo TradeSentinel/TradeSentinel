@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getMessaging, getToken } from "firebase/messaging";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -18,10 +18,13 @@ const firebaseConfig = {
     measurementId: "G-6M6YY17CEM"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize (or reuse) Firebase app to avoid re-initialization during HMR
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
+
+// Get Auth instance and set durable persistence with fallback
 export const auth = getAuth(app);
+setPersistence(auth, indexedDBLocalPersistence).catch(() => setPersistence(auth, browserLocalPersistence));
 export const db = getFirestore(app);
 export const initializeFirebaseMessaging = async () => {
     try {
