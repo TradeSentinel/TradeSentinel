@@ -7,34 +7,62 @@ import { toast } from "react-toastify"
 import { useState } from "react"
 import MiniLoader from "../MiniLoader"
 
-// Simple Confirmation Dialog (can be styled better or replaced with a modal library)
+// Figma-styled confirmation dialog for alert deletion (pixel-perfect)
 const ConfirmationDialog: React.FC<{
     message: string;
     onConfirm: () => void;
     onCancel: () => void;
     confirmText?: string;
     cancelText?: string;
-}> = ({ message, onConfirm, onCancel, confirmText = "Confirm", cancelText = "Cancel" }) => {
+}> = ({ message, onConfirm, onCancel, confirmText = "Yes, delete", cancelText = "Cancel" }) => {
+    const labelId = "confirm-delete-title";
+    const descId = "confirm-delete-desc";
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-[#FCFCFD] p-6 rounded-xl shadow-2xl w-full max-w-sm mx-auto text-center">
-                <div className="mb-6">
-                    {/* Optional: Add an icon here if desired, e.g., a warning icon */}
-                    {/* <WarningIcon className="mx-auto mb-4 h-12 w-12 text-red-500" /> */}
-                    <p className="text-lg font-medium text-[#121926]">{message}</p>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-center gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#E3E8EF] text-[#364152] font-medium hover:bg-gray-300 transition-colors duration-150 ease-in-out"
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(18,25,38,0.10)] backdrop-blur-[4px]"
+            onClick={onCancel}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={labelId}
+                aria-describedby={descId}
+                className="bg-[#FCFCFD] rounded-3xl w-full max-w-md flex flex-col gap-6 px-5 py-6"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col gap-3 items-center text-center text-[#202939]">
+                    <h3
+                        id={labelId}
+                        className="font-['IBM_Plex_Sans:SemiBold',_sans-serif] text-[20px] leading-[30px]"
                     >
-                        {cancelText}
-                    </button>
+                        Confirm alert deletion
+                    </h3>
+                    <p
+                        id={descId}
+                        className="font-['IBM_Plex_Sans:Regular',_sans-serif] text-[14px] leading-[20px]"
+                    >
+                        {message}
+                    </p>
+                </div>
+                <div className="flex flex-col gap-2 w-full">
                     <button
+                        type="button"
                         onClick={onConfirm}
-                        className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#AD183F] text-white font-medium hover:bg-red-700 transition-colors duration-150 ease-in-out"
+                        className="px-[18px] py-2.5 rounded-[1000px] text-[16px] leading-[24px] font-['IBM_Plex_Sans:Medium',_sans-serif] text-[#AD183F]"
+                        autoFocus
                     >
                         {confirmText}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="relative rounded-[1000px] bg-[#7F56D9] text-white px-[18px] py-2.5 font-['IBM_Plex_Sans:Medium',_sans-serif] text-[16px] leading-[24px]"
+                    >
+                        {cancelText}
+                        <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 rounded-[1000px] border border-[#7F56D9] shadow-[0px_1px_2px_0px_rgba(105,117,134,0.05)]"
+                        />
                     </button>
                 </div>
             </div>
@@ -139,7 +167,7 @@ export default function AlertInfoToShow() {
                     message="Are you sure you want to delete this alert?"
                     onConfirm={handleDelete}
                     onCancel={() => setShowConfirmDelete(false)}
-                    confirmText="Delete"
+                    confirmText="Yes, Delete"
                 />
             )}
             <div className={`flex flex-col w-full bg-[#FCFCFD] rounded-t-[1.25rem] max-w-[600px] ${isClosing ? 'slide-down-animation' : 'slide-up-animation'}`}>
