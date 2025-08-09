@@ -306,14 +306,47 @@ const App: React.FC = () => {
   }, [updateUser, updateUserProfileName, updateHasSetAvatar, updateAvatarId, updatePwaPromptDismissed, setAuthLoading, initTopPairsWebSocket, closeTopPairsWebSocket]);
 
   return (
-    <div className="bg-[#EEF2F6] flex items-center justify-center">
-      <div
-        className="max-w-[600px] w-full dynamicHeight font-ibm flex flex-col pt-8"
-      >
-        <ToastContainer />
-        <RouterProvider router={Router} />
+    <>
+      <div className="bg-[#EEF2F6] flex items-center justify-center min-h-screen">
+        <div
+          className="max-w-[1024px] w-full dynamicHeight font-ibm flex flex-col pt-8
+            tablet:max-w-[1024px] 
+            mobile:max-w-full"
+        >
+          <ToastContainer />
+          <RouterProvider router={Router} />
+        </div>
       </div>
-    </div>
+      {/* Overlay for large screens */}
+      <div
+        className="fixed inset-0 z-50 bg-[#EEF2F6] flex-col items-center justify-center hidden lg:flex"
+        style={{ pointerEvents: "auto" }}
+      >
+        <div className="flex flex-col items-center justify-center w-full h-full">
+          <div className="bg-white rounded-2xl shadow-lg px-8 py-10 flex flex-col items-center max-w-md">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mb-6">
+              <rect width="64" height="64" rx="32" fill="#7F56D9"/>
+              <path d="M32 20C26.4772 20 22 24.4772 22 30C22 35.5228 26.4772 40 32 40C37.5228 40 42 35.5228 42 30C42 24.4772 37.5228 20 32 20ZM32 38C27.5817 38 24 34.4183 24 30C24 25.5817 27.5817 22 32 22C36.4183 22 40 25.5817 40 30C40 34.4183 36.4183 38 32 38Z" fill="white"/>
+              <rect x="28" y="44" width="8" height="4" rx="2" fill="white"/>
+            </svg>
+            <h2 className="text-2xl font-semibold text-[#121926] mb-2 text-center">Please use a tablet or mobile device</h2>
+            <p className="text-[#697586] text-center mb-4">
+              This app is designed for tablet and mobile screens. Please open it on a compatible device for the best experience.
+            </p>
+          </div>
+        </div>
+      </div>
+      <style>
+        {`
+          @media (max-width: 1023px) {
+            .lg\\:flex { display: none !important; }
+          }
+          @media (min-width: 1024px) {
+            .lg\\:flex { display: flex !important; }
+          }
+        `}
+      </style>
+    </>
   );
 }
 

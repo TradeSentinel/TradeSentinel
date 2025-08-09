@@ -99,7 +99,7 @@ const ProfilePage: React.FC = () => {
             // Only include avatar updates if the avatar was changed
             if (selectedAvatarId !== null && selectedAvatarId !== avatarId) {
                 updates.avatarId = selectedAvatarId;
-                updates.avatarUrl = `/avatar${selectedAvatarId}.png`;
+                updates.avatarUrl = `/avatar${selectedAvatarId}.svg`;
                 updates.hasSetAvatar = true;
             }
 
@@ -167,7 +167,7 @@ const ProfilePage: React.FC = () => {
                             <div className="bg-white w-[80px] h-[80px] rounded-full flex items-center justify-center overflow-hidden">
                                 {displayAvatarId ? (
                                     <img
-                                        src={`/avatar${displayAvatarId}.png`}
+                                        src={`/avatar${displayAvatarId}.svg`}
                                         alt="User Avatar"
                                         className="w-full h-full object-cover"
                                     />

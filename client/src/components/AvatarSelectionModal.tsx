@@ -13,12 +13,12 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({ onClose, on
 
     // Avatar data
     const avatars = [
-        { id: 1, src: "/avatar1.png", bgColor: '#EBE9FF' },
-        { id: 2, src: "/avatar2.png", bgColor: '#DCFCE7' },
-        { id: 3, src: "/avatar3.png", bgColor: '#FFEBD5' },
-        { id: 4, src: "/avatar4.png", bgColor: '#EBE9FF' },
-        { id: 5, src: "/avatar5.png", bgColor: '#DCFCE7' },
-        { id: 6, src: "/avatar6.png", bgColor: '#FFEBD5' },
+        { id: 1, src: "/avatar1.svg", bgColor: '#EBE9FF' },
+        { id: 2, src: "/avatar2.svg", bgColor: '#DCFCE7' },
+        { id: 3, src: "/avatar3.svg", bgColor: '#FFEBD5' },
+        { id: 4, src: "/avatar4.svg", bgColor: '#EBE9FF' },
+        { id: 5, src: "/avatar5.svg", bgColor: '#DCFCE7' },
+        { id: 6, src: "/avatar6.svg", bgColor: '#FFEBD5' },
     ];
 
     // Preload all avatar images when modal opens

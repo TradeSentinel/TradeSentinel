@@ -140,7 +140,7 @@ export default function Homepage() {
                         <i className="overflow-hidden rounded-full">
                             {avatarId && hasSetAvatar ? (
                                 <img
-                                    src={`/avatar${avatarId}.png`}
+                                    src={`/avatar${avatarId}.svg`}
                                     alt="User Avatar"
                                     className="h-[40px] w-[40px] rounded-full object-cover"
                                 />
