@@ -30,7 +30,7 @@ export const initializeFirebaseMessaging = async () => {
     try {
         const token = await getToken(messaging, { vapidKey: 'BGaOGL6Kc9p6FFJxg8FXRhn3yP6wKKjubT1O0jI39X6ILbfAwPpFrJkufJ6CFhPZEm0dONmenLi0smyeCAb1bEM' });
         if (token) {
-            console.log('FCM Token:', token);
+            console.log('FCM token received (suffix):', token.slice(-6));
             // Send the token to your server to save it for sending notifications later
         } else {
             console.log('No registration token available. Request permission to generate one.');

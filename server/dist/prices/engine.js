@@ -26,7 +26,9 @@ class PriceEngine extends events_1.EventEmitter {
         this.started = false;
         this.freshMs = options.freshMs ?? (0, types_1.readPositiveInt)(process.env.PRICE_STALE_MS, 5000, 'PRICE_STALE_MS');
         this.maxSourceAgeSeconds = options.maxSourceAgeSeconds
-            ?? (0, types_1.readPositiveInt)(process.env.PRICE_MAX_SOURCE_AGE_SECONDS, 10, 'PRICE_MAX_SOURCE_AGE_SECONDS');
+            ?? (0, types_1.readPositiveInt)(process.env.PRICE_MAX_SOURCE_AGE_SECONDS, 30, 'PRICE_MAX_SOURCE_AGE_SECONDS');
+        this.maxAlertSourceAgeSeconds = options.maxAlertSourceAgeSeconds
+            ?? (0, types_1.readPositiveInt)(process.env.PRICE_ALERT_MAX_SOURCE_AGE_SECONDS, 10, 'PRICE_ALERT_MAX_SOURCE_AGE_SECONDS');
         this.providers = [
             new biquote_1.BiquoteProvider(),
             new coinbase_1.CoinbaseProvider(),
@@ -93,10 +95,12 @@ class PriceEngine extends events_1.EventEmitter {
         if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0)
             return true;
         const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60)
+            return true;
         return sourceAgeSeconds > this.maxSourceAgeSeconds;
     }
     canTriggerAlerts(quote) {
-        return !quote.delayed && quote.marketOpen && !this.isStale(quote);
+        return !quote.delayed && quote.marketOpen && !this.isStale(quote) && this.isAlertFresh(quote);
     }
     getSnapshot(pairs) {
         const snapshot = [];
@@ -130,6 +134,7 @@ class PriceEngine extends events_1.EventEmitter {
                     stale: this.isStale(quote),
                     delayed: quote.delayed,
                     marketOpen: quote.marketOpen,
+                    alertEligible: this.canTriggerAlerts(quote),
                     quoteAgeSeconds: quote.quoteAgeSeconds
                 };
             })
@@ -143,7 +148,25 @@ class PriceEngine extends events_1.EventEmitter {
         if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0)
             return true;
         const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60)
+            return true;
         return sourceAgeSeconds > this.maxSourceAgeSeconds;
+    }
+    /**
+     * Display freshness is deliberately looser than alert freshness so a thin
+     * pair can still be shown without allowing a notification on an old tick.
+     */
+    isAlertFresh(quote) {
+        if (quote.providerStale)
+            return false;
+        if (quote.quoteAgeSeconds !== undefined && quote.quoteAgeSeconds > this.maxAlertSourceAgeSeconds)
+            return false;
+        if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0)
+            return false;
+        const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60)
+            return false;
+        return sourceAgeSeconds <= this.maxAlertSourceAgeSeconds;
     }
     formatPrice(pair, value) {
         if (!Number.isFinite(value))

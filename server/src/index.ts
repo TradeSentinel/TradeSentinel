@@ -5,14 +5,14 @@ import nodemailer from 'nodemailer'; // Added nodemailer import
 import http from 'http';
 import { PriceEngine } from './prices/engine';
 import { displayPair, isSupportedPair, normalizePair } from './prices/pairs';
-import { PriceEngineStatus, Quote } from './prices/types';
+import { PriceEngineStatus, Quote, readPositiveInt } from './prices/types';
 import path from 'path'; // Import path module
 import fs from 'fs'; // Import fs module
 
 // Message types for WebSocket client-server communication
 interface TokenRegistrationMessage {
     type: 'register_token';
-    userId: string;
+    idToken: string;
     fcmToken: string;
 }
 
@@ -41,30 +41,50 @@ interface Alert {
 let currentActiveAlerts: Alert[] = [];
 let processingAlertIds = new Set<string>(); // Keeps track of alerts currently being processed
 
+const MAX_FCM_TOKENS_PER_USER = 10;
+
+function isValidFcmToken(token: string): boolean {
+    return typeof token === 'string'
+        && token.length >= 20
+        && token.length <= 4096
+        && /^[A-Za-z0-9_\-:.]+$/.test(token);
+}
+
+// Short TTL guard against a slow Firestore refresh re-adding an alert that
+// was just triggered, which would produce duplicate notifications.
+const recentlyTriggeredAlerts = new Map<string, number>();
+const RECENT_TRIGGER_TTL_MS = 30_000;
+
+function wasRecentlyTriggered(alertId: string): boolean {
+    const triggeredAt = recentlyTriggeredAlerts.get(alertId);
+    if (!triggeredAt) return false;
+    if (Date.now() - triggeredAt <= RECENT_TRIGGER_TTL_MS) return true;
+    recentlyTriggeredAlerts.delete(alertId);
+    return false;
+}
+
+setInterval(() => {
+    const cutoff = Date.now() - RECENT_TRIGGER_TTL_MS;
+    for (const [alertId, triggeredAt] of recentlyTriggeredAlerts) {
+        if (triggeredAt < cutoff) recentlyTriggeredAlerts.delete(alertId);
+    }
+}, 60_000).unref();
+
 // Load environment variables from .env file
 dotenv.config();
 
 let firebaseInitialized = false;
 // Initialize Firebase Admin SDK
 const serviceAccountPathFromEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH;
-console.log('Raw FIREBASE_SERVICE_ACCOUNT_KEY_PATH from .env:', serviceAccountPathFromEnv);
 
 if (serviceAccountPathFromEnv) {
-    // Construct an absolute path relative to the project root (server directory)
-    // __dirname in an ES module context might behave differently or not be available.
-    // process.cwd() gives the directory from which Node.js process was launched.
-    // If running `npm run dev` from `server/`, process.cwd() should be `server/`.
-    const projectRoot = process.cwd(); // Assumes script is run from server/
-    const absoluteServiceAccountPath = path.resolve(projectRoot, serviceAccountPathFromEnv);
-
-    console.log('Resolved absolute path for service account key:', absoluteServiceAccountPath);
-    console.log('Current working directory (process.cwd()):', projectRoot);
-    console.log('Directory of current module (__dirname, if available):', typeof __dirname !== 'undefined' ? __dirname : 'N/A (ESM or not available)');
+    // Resolve relative to the server directory (process.cwd() when run from server/).
+    const absoluteServiceAccountPath = path.resolve(process.cwd(), serviceAccountPathFromEnv);
 
     try {
         // Check if the file exists at the resolved path
         if (fs.existsSync(absoluteServiceAccountPath)) {
-            console.log('Service account key file FOUND at:', absoluteServiceAccountPath);
+            console.log('Service account key file found. Initializing Firebase Admin.');
             const serviceAccount = require(absoluteServiceAccountPath);
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount)
@@ -75,17 +95,13 @@ if (serviceAccountPathFromEnv) {
             // Initialize real-time listeners for Firestore
             setupFirestoreListeners();
         } else {
-            console.error('Service account key file NOT FOUND at resolved path:', absoluteServiceAccountPath);
-            console.error('Please ensure FIREBASE_SERVICE_ACCOUNT_KEY_PATH in .env is correct and relative to the server directory if not absolute.');
-            // process.exit(1); 
+            console.error('Service account key file not found at the configured FIREBASE_SERVICE_ACCOUNT_KEY_PATH.');
         }
     } catch (error) {
         console.error('Error initializing Firebase Admin SDK:', error);
-        // process.exit(1); // Optionally exit if Firebase is critical
     }
 } else {
-    console.error('FIREBASE_SERVICE_ACCOUNT_KEY_PATH is not set in .env file. Firebase Admin SDK could not be initialized.');
-    // process.exit(1); // Optionally exit if Firebase is critical
+    console.error('FIREBASE_SERVICE_ACCOUNT_KEY_PATH is not set. Firebase Admin SDK could not be initialized.');
 }
 
 
@@ -130,9 +146,26 @@ function snapshotPayload(quote: Quote) {
     };
 }
 
+function publicStatus(status: PriceEngineStatus) {
+    return {
+        now: status.now,
+        providers: status.providers.map(provider => ({ id: provider.id, state: provider.state })),
+        pairs: status.pairs.map(pair => ({
+            pair: pair.pair,
+            displayPair: pair.displayPair,
+            missing: Boolean(pair.missing),
+            stale: Boolean(pair.stale),
+            delayed: Boolean(pair.delayed),
+            marketOpen: Boolean(pair.marketOpen),
+            alertEligible: Boolean(pair.alertEligible)
+        }))
+    };
+}
+
 function broadcastPriceStatus(status: PriceEngineStatus): void {
+    const payload = publicStatus(status);
     for (const ws of priceSubscriptions.keys()) {
-        sendJson(ws, { type: 'price_status', status });
+        sendJson(ws, { type: 'price_status', status: payload });
     }
 }
 
@@ -158,28 +191,69 @@ function broadcastPrice(quote: Quote): void {
     }
 }
 
-const httpServer = http.createServer((req, res) => {
-    if (req.url === '/health') {
-        const status = priceEngine.getStatus();
-        const connectedProviders = status.providers.filter(provider => provider.state === 'connected').length;
-        const freshPairs = status.pairs.filter(pair => !pair.missing && !pair.stale && !pair.delayed && pair.marketOpen).length;
-        const ok = connectedProviders > 0 && freshPairs > 0;
+function priceHealthPayload() {
+    const status = priceEngine.getStatus();
+    const connectedProviders = status.providers.filter(provider => provider.state === 'connected').length;
+    const freshPairs = status.pairs.filter(pair => pair.alertEligible).length;
 
-        res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-            ok,
-            connectedProviders,
-            freshPairs,
-            firebase: firebaseInitialized,
-            prices: status
-        }));
+    return {
+        ok: connectedProviders > 0 && freshPairs > 0,
+        connectedProviders,
+        freshPairs,
+        firebase: firebaseInitialized,
+        providers: status.providers.map(provider => ({ id: provider.id, state: provider.state })),
+        pairs: status.pairs.map(pair => ({
+            pair: pair.pair,
+            displayPair: pair.displayPair,
+            missing: Boolean(pair.missing),
+            stale: Boolean(pair.stale),
+            delayed: Boolean(pair.delayed),
+            marketOpen: Boolean(pair.marketOpen),
+            alertEligible: Boolean(pair.alertEligible)
+        }))
+    };
+}
+
+const httpServer = http.createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/ready') {
+        const payload = priceHealthPayload();
+        const strict = req.url === '/ready';
+        res.writeHead(!strict || payload.ok ? 200 : 503, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store'
+        });
+        res.end(JSON.stringify(payload));
         return;
     }
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not found');
 });
 
-const wss = new WebSocketServer({ server: httpServer, maxPayload: 64 * 1024 });
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+    console.error('[security] ALLOWED_ORIGINS must be set in production. Refusing to start.');
+    process.exit(1);
+}
+
+const wss = new WebSocketServer({
+    server: httpServer,
+    maxPayload: 64 * 1024,
+    verifyClient: ({ origin }, done) => {
+        if (allowedOrigins.length === 0 || (origin && allowedOrigins.includes(origin))) {
+            done(true);
+            return;
+        }
+        done(false, 403, 'Forbidden');
+    }
+});
+
+wss.on('error', (error) => {
+    console.error('[WebSocketServer] error:', error.message);
+});
 const aliveClients = new WeakSet<WebSocket>();
 
 const heartbeat = setInterval(() => {
@@ -200,7 +274,63 @@ httpServer.listen(Number(PORT), () => {
     console.log(`Trade Sentinel server started on port ${PORT} (WebSocket + /health)`);
 });
 
-wss.on('connection', (wsClient) => {
+const connectionsByIp = new Map<string, number>();
+const trustProxy = process.env.TRUST_PROXY === 'true';
+const maxTotalConnections = readPositiveInt(process.env.MAX_WS_CONNECTIONS, 500, 'MAX_WS_CONNECTIONS');
+const maxConnectionsPerIp = readPositiveInt(process.env.MAX_WS_CONNECTIONS_PER_IP, 20, 'MAX_WS_CONNECTIONS_PER_IP');
+
+function clientIp(req: http.IncomingMessage): string | null {
+    // Only trust X-Forwarded-For when a trusted proxy is in front of the app.
+    if (!trustProxy) return null;
+
+    const forwarded = req.headers['x-forwarded-for'];
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    if (first) {
+        const candidate = first.split(',')[0].trim();
+        if (candidate) return candidate;
+    }
+    return req.socket.remoteAddress || null;
+}
+
+wss.on('connection', (wsClient, req) => {
+    // Register error and close handling before any early return. A rejected
+    // socket can still emit an error (for example an oversized frame), and an
+    // unhandled 'error' event would take down the whole process.
+    wsClient.on('error', (error) => {
+        console.error('Client WebSocket error:', error.message);
+    });
+
+    const ip = clientIp(req);
+    let countedIp = false;
+
+    wsClient.on('close', () => {
+        priceSubscriptions.delete(wsClient);
+        if (countedIp && ip) {
+            const remaining = (connectionsByIp.get(ip) || 1) - 1;
+            if (remaining <= 0) {
+                connectionsByIp.delete(ip);
+            } else {
+                connectionsByIp.set(ip, remaining);
+            }
+        }
+        console.log('Client disconnected');
+    });
+
+    if (wss.clients.size > maxTotalConnections) {
+        wsClient.terminate();
+        return;
+    }
+
+    if (ip) {
+        const nextCount = (connectionsByIp.get(ip) || 0) + 1;
+        if (nextCount > maxConnectionsPerIp) {
+            wsClient.terminate();
+            return;
+        }
+        connectionsByIp.set(ip, nextCount);
+        countedIp = true;
+    }
+
     console.log('Client connected to Trade Sentinel WebSocket server');
     aliveClients.add(wsClient);
     wsClient.on('pong', () => aliveClients.add(wsClient));
@@ -225,25 +355,51 @@ wss.on('connection', (wsClient) => {
 
             // Handle different message types
             switch (parsedMessage.type) {
-                case 'register_token':
-                    // Handle FCM token registration
+                case 'register_token': {
                     const tokenMessage = parsedMessage as TokenRegistrationMessage;
-                    if (tokenMessage.userId && tokenMessage.fcmToken) {
-                        const success = await storeFcmToken(tokenMessage.userId, tokenMessage.fcmToken);
-                        // Respond to client
-                        wsClient.send(JSON.stringify({
+                    if (!tokenMessage.idToken || !tokenMessage.fcmToken) {
+                        sendJson(wsClient, {
+                            type: 'error',
+                            message: 'Invalid token registration message. Missing idToken or fcmToken.',
+                            timestamp: Date.now()
+                        });
+                        break;
+                    }
+                    if (!isValidFcmToken(tokenMessage.fcmToken)) {
+                        sendJson(wsClient, {
+                            type: 'error',
+                            message: 'Invalid FCM token format.',
+                            timestamp: Date.now()
+                        });
+                        break;
+                    }
+                    if (!firebaseInitialized) {
+                        sendJson(wsClient, {
+                            type: 'error',
+                            message: 'Authentication is not available on this server.',
+                            timestamp: Date.now()
+                        });
+                        break;
+                    }
+                    try {
+                        // The UID comes from the verified token, never from the client.
+                        const decoded = await admin.auth().verifyIdToken(tokenMessage.idToken);
+                        const success = await storeFcmToken(decoded.uid, tokenMessage.fcmToken);
+                        sendJson(wsClient, {
                             type: 'token_registration_response',
                             success,
                             timestamp: Date.now()
-                        }));
-                    } else {
-                        wsClient.send(JSON.stringify({
+                        });
+                    } catch (error) {
+                        console.error('[register_token] Invalid Firebase ID token');
+                        sendJson(wsClient, {
                             type: 'error',
-                            message: 'Invalid token registration message. Missing userId or fcmToken.',
+                            message: 'Invalid authentication token.',
                             timestamp: Date.now()
-                        }));
+                        });
                     }
                     break;
+                }
 
                 case 'subscribe_prices': {
                     let subscriptions = priceSubscriptions.get(wsClient);
@@ -254,6 +410,7 @@ wss.on('connection', (wsClient) => {
 
                     const requestedPairs = Array.isArray(parsedMessage.pairs)
                         ? parsedMessage.pairs
+                            .slice(0, 50)
                             .map((pair: unknown) => normalizePair(String(pair)))
                             .filter(isSupportedPair)
                         : [];
@@ -265,7 +422,7 @@ wss.on('connection', (wsClient) => {
                     sendJson(wsClient, {
                         type: 'subscribed_prices',
                         pairs: Array.from(subscriptions),
-                        status: priceEngine.getStatus()
+                        status: publicStatus(priceEngine.getStatus())
                     });
 
                     const snapshot = priceEngine.getSnapshot(Array.from(subscriptions));
@@ -281,7 +438,9 @@ wss.on('connection', (wsClient) => {
                 case 'unsubscribe_prices': {
                     const subscriptions = priceSubscriptions.get(wsClient);
                     const pairsToRemove = Array.isArray(parsedMessage.pairs)
-                        ? parsedMessage.pairs.map((pair: unknown) => normalizePair(String(pair)))
+                        ? parsedMessage.pairs
+                            .slice(0, 50)
+                            .map((pair: unknown) => normalizePair(String(pair)))
                         : [];
 
                     if (subscriptions) {
@@ -299,45 +458,33 @@ wss.on('connection', (wsClient) => {
 
                 // Handle other message types as needed
                 default:
-                    console.log(`[WebSocket] Received unsupported message type: ${parsedMessage.type}`);
-                    wsClient.send(JSON.stringify({
+                    console.log(`[WebSocket] Received unsupported message type: ${JSON.stringify(parsedMessage.type)}`);
+                    sendJson(wsClient, {
                         type: 'error',
-                        message: `Unsupported message type: ${parsedMessage.type}`,
+                        message: `Unsupported message type: ${JSON.stringify(parsedMessage.type)}`,
                         timestamp: Date.now()
-                    }));
+                    });
             }
         } catch (error) {
             console.error('Error processing client message:', error);
-            wsClient.send(JSON.stringify({
+            sendJson(wsClient, {
                 type: 'error',
                 message: 'Failed to process message',
                 timestamp: Date.now()
-            }));
+            });
         }
     });
 
-    wsClient.on('close', () => {
-        priceSubscriptions.delete(wsClient);
-        console.log('Client disconnected');
-    });
-
-    wsClient.on('error', (error) => {
-        console.error('Client WebSocket error:', error);
-    });
-
     // Send welcome message with server status
-    wsClient.send(JSON.stringify({
+    sendJson(wsClient, {
         type: 'connection_established',
         message: 'Welcome to Trade Sentinel WebSocket Server!',
         status: {
             firebase: firebaseInitialized,
-            prices: priceEngine.getStatus().providers.map(provider => ({
-                id: provider.id,
-                state: provider.state
-            }))
+            prices: publicStatus(priceEngine.getStatus()).providers
         },
         timestamp: Date.now()
-    }));
+    });
 });
 
 console.log('Trade Sentinel Server starting...');
@@ -526,7 +673,7 @@ async function storeFcmToken(userId: string, token: string): Promise<boolean> {
             await tokenDocRef.update({
                 lastUsed: timestamp
             });
-            console.log(`[storeFcmToken] FCM token updated for user ${userId}. Doc ID (token): ${tokenDocRef.id}`);
+            console.log(`[storeFcmToken] FCM token updated for user ${userId}. Token suffix: ${tokenDocRef.id.slice(-6)}`);
         } else {
             // If it doesn't exist, set it with createdAt and lastUsed
             await tokenDocRef.set({
@@ -535,12 +682,24 @@ async function storeFcmToken(userId: string, token: string): Promise<boolean> {
                 lastUsed: timestamp,
                 platform: 'web'
             });
-            console.log(`[storeFcmToken] New FCM token stored for user ${userId}. Doc ID (token): ${tokenDocRef.id}`);
+            console.log(`[storeFcmToken] New FCM token stored for user ${userId}. Token suffix: ${tokenDocRef.id.slice(-6)}`);
+        }
+
+        // Cap tokens per user so one account cannot grow the collection without bound.
+        const tokenSnapshot = await userRef.collection('fcmTokens').get();
+        const sortedTokens = tokenSnapshot.docs.sort((a, b) => {
+            const aTime = a.get('lastUsed')?.toMillis?.() ?? 0;
+            const bTime = b.get('lastUsed')?.toMillis?.() ?? 0;
+            return bTime - aTime;
+        });
+        const staleTokens = sortedTokens.slice(MAX_FCM_TOKENS_PER_USER);
+        if (staleTokens.length > 0) {
+            await Promise.all(staleTokens.map(doc => doc.ref.delete()));
         }
 
         return true;
     } catch (error) {
-        console.error(`[storeFcmToken] Error storing FCM token for user ${userId}:`, error);
+        console.error(`[storeFcmToken] Error storing FCM token for user ${userId}:`, error instanceof Error ? error.message : error);
         return false;
     }
 }
@@ -576,14 +735,14 @@ async function sendFcmNotification(alert: Alert, priceUpdate: { ask: string, bid
                 const tokenData = doc.data();
                 if (tokenData && tokenData.token) {
                     tokens.push(tokenData.token);
-                    console.warn(`[sendFcmNotification] Using token from field for doc ${doc.id} for user ${alert.userId}. Consider migrating to token-as-id.`)
+                    console.warn(`[sendFcmNotification] Using token from field for doc suffix ${doc.id.slice(-6)} for user ${alert.userId}. Consider migrating to token-as-id.`)
                 } else {
-                    console.warn(`[sendFcmNotification] Document ${doc.id} for user ${alert.userId} has no ID or token field.`)
+                    console.warn(`[sendFcmNotification] Document suffix ${doc.id.slice(-6)} for user ${alert.userId} has no ID or token field.`)
                 }
             }
         });
     } catch (error) {
-        console.error(`[sendFcmNotification] Error fetching FCM tokens for user ${alert.userId}:`, error);
+        console.error(`[sendFcmNotification] Error fetching FCM tokens for user ${alert.userId}:`, error instanceof Error ? error.message : error);
         return false;
     }
 
@@ -591,6 +750,8 @@ async function sendFcmNotification(alert: Alert, priceUpdate: { ask: string, bid
         console.log(`[sendFcmNotification] No FCM tokens available for user ${alert.userId} after fetching.`);
         return false;
     }
+
+    tokens = tokens.slice(0, 500);
 
     const link = `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard?alertId=${alert.id}`;
 
@@ -637,18 +798,18 @@ async function sendFcmNotification(alert: Alert, priceUpdate: { ask: string, bid
         response.responses.forEach((resp, idx) => {
             if (!resp.success) {
                 failedTokens.push(tokens[idx]);
-                console.error(`[sendFcmNotification] Failed to send to token ${tokens[idx]}:`, resp.error);
+                console.error(`[sendFcmNotification] Failed to send to token suffix ${tokens[idx].slice(-6)}:`, resp.error);
             }
         });
 
         if (failedTokens.length > 0) {
-            console.log(`[sendFcmNotification] Failed tokens for user ${alert.userId}: ${failedTokens.join(', ')}`);
+            console.log(`[sendFcmNotification] Failed token suffixes for user ${alert.userId}: ${failedTokens.map(token => token.slice(-6)).join(', ')}`);
             // Consider implementing logic to remove failed tokens from Firestore here
         }
 
         return response.successCount > 0;
     } catch (error) {
-        console.error(`[sendFcmNotification] Error sending FCM notification for alert ${alert.id} to user ${alert.userId}:`, error);
+        console.error(`[sendFcmNotification] Error sending FCM notification for alert ${alert.id} to user ${alert.userId}:`, error instanceof Error ? error.message : error);
         return false;
     }
 }
@@ -697,9 +858,9 @@ The Trade Sentinel Team
 
     try {
         const info = await mailTransporter.sendMail(mailOptions);
-        console.log(`[sendEmailNotification] Email sent successfully to ${userEmail} for alert ${alert.id}. Message ID: ${info.messageId}`);
+        console.log(`[sendEmailNotification] Email sent for alert ${alert.id} to user ${alert.userId}. Message ID: ${info.messageId}`);
     } catch (error) {
-        console.error(`[sendEmailNotification] Error sending email to ${userEmail} for alert ${alert.id}:`, error);
+        console.error(`[sendEmailNotification] Error sending email for alert ${alert.id} to user ${alert.userId}:`, error instanceof Error ? error.message : error);
         // Optionally, you might want to implement a retry mechanism or log this to a more persistent error tracking service
     }
 }
@@ -733,7 +894,7 @@ function setupFirestoreListeners() {
                     if (change.type === 'added') changes.added++;
                     if (change.type === 'modified') changes.modified++;
                     if (change.type === 'removed') changes.removed++;
-                    console.log(`[FirestoreListener DEBUG] Change type: ${change.type}, Doc ID: ${change.doc.id}, Data: ${JSON.stringify(change.doc.data())}`);
+                    console.log(`[FirestoreListener] Change type: ${change.type}, alert ${change.doc.id}`);
                 });
 
                 console.log(`[FirestoreListener] Changes detected: ${changes.added} added, ${changes.modified} modified, ${changes.removed} removed`);
@@ -820,21 +981,26 @@ priceEngine.on('quote', (quote: Quote) => {
     currentActiveAlerts = stillActiveAlertsForNextTick;
 
     for (const alert of alertsToPotentiallyTrigger) {
-        if (processingAlertIds.has(alert.id)) {
+        if (processingAlertIds.has(alert.id) || wasRecentlyTriggered(alert.id)) {
             continue;
         }
 
         processingAlertIds.add(alert.id);
+        recentlyTriggeredAlerts.set(alert.id, Date.now());
         currentActiveAlerts = currentActiveAlerts.filter(candidate => candidate.id !== alert.id);
 
         handleTriggeredAlert(alert, quote)
             .then(persisted => {
-                if (!persisted && !currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
-                    currentActiveAlerts.push(alert);
+                if (!persisted) {
+                    recentlyTriggeredAlerts.delete(alert.id);
+                    if (!currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
+                        currentActiveAlerts.push(alert);
+                    }
                 }
             })
             .catch(error => {
                 console.error(`[alerts] Error handling triggered alert ${alert.id}:`, error);
+                recentlyTriggeredAlerts.delete(alert.id);
                 if (!currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
                     currentActiveAlerts.push(alert);
                 }

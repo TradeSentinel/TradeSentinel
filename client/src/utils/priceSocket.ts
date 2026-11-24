@@ -17,8 +17,9 @@ type QuoteListener = (quote: PriceQuote) => void;
 type StatusListener = (status: PriceSocketStatus) => void;
 
 const configuredWsUrl = import.meta.env.VITE_WS_SERVER_URL;
-if (!configuredWsUrl && import.meta.env.PROD) {
-    console.error('[priceSocket] VITE_WS_SERVER_URL is missing from the production build; prices will not connect.');
+const insecureProductionConfig = Boolean(import.meta.env.PROD && (!configuredWsUrl || !configuredWsUrl.startsWith('wss://')));
+if (insecureProductionConfig) {
+    console.error('[priceSocket] Production requires VITE_WS_SERVER_URL with wss://; refusing to connect.');
 }
 
 const WS_URL = configuredWsUrl || 'ws://localhost:8787';
@@ -38,6 +39,7 @@ class PriceSocket {
     private readonly statusListeners = new Set<StatusListener>();
     private readonly desiredPairs = new Set<string>();
     private readonly lastQuotes = new Map<string, PriceQuote>();
+    private readonly clientReceivedAt = new Map<string, number>();
     private status: PriceSocketStatus = 'disconnected';
     private reconnectTimer: number | null = null;
     private reconnectAttempts = 0;
@@ -67,6 +69,7 @@ class PriceSocket {
             this.listeners.delete(key);
             this.desiredPairs.delete(key);
             this.lastQuotes.delete(key);
+            this.clientReceivedAt.delete(key);
             this.send({ type: 'unsubscribe_prices', pairs: [key] });
             this.closeIfIdle();
         };
@@ -109,6 +112,10 @@ class PriceSocket {
     }
 
     private ensureConnected(): void {
+        if (insecureProductionConfig) {
+            this.setStatus('error');
+            return;
+        }
         if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
             return;
         }
@@ -186,6 +193,7 @@ class PriceSocket {
     private dispatch(quote: PriceQuote): void {
         if (!quote || !quote.pair) return;
         this.lastQuotes.set(quote.pair, quote);
+        this.clientReceivedAt.set(quote.pair, Date.now());
         const listeners = this.listeners.get(quote.pair);
         if (!listeners) return;
         for (const listener of Array.from(listeners)) {
@@ -221,11 +229,15 @@ class PriceSocket {
      */
     private startAging(): void {
         if (this.agingTimer !== null) return;
+        // Deliberately looser than the server's 5s receive freshness: the
+        // server controls alert eligibility, while the UI avoids flickering on
+        // one missed tick. The badge can lag the server by up to one interval.
         this.agingTimer = window.setInterval(() => {
             const now = Date.now();
             for (const [pair, quote] of this.lastQuotes) {
                 if (quote.stale) continue;
-                if (now - quote.receivedAt <= 8000) continue;
+                const receivedAt = this.clientReceivedAt.get(pair) ?? quote.receivedAt;
+                if (now - receivedAt <= 8000) continue;
                 const staleQuote: PriceQuote = { ...quote, stale: true };
                 this.lastQuotes.set(pair, staleQuote);
                 this.dispatch(staleQuote);

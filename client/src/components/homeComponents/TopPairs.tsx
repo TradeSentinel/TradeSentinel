@@ -20,6 +20,11 @@ export default function TopPairs() {
     const updateNewAlert = useGeneralAppStore(state => state.updateNewAlert);
     const topPairsLivePrices = useGeneralAppStore(state => state.topPairsLivePrices);
     const reconnectWebSocket = useGeneralAppStore(state => state.reconnectTopPairsWebSocket);
+    const displayedForexPairs = ['EUR/USD', 'GBP/USD', 'AUD/USD'];
+    const hasDelayedForex = displayedForexPairs.some(pairName => {
+        const data = topPairsLivePrices[pairName];
+        return Boolean(data?.delayed || data?.source === 'exchangerate.dev');
+    });
     // Removed initTopPairsWebSocket call from here, will be in App.tsx
 
     // No local WebSocket logic needed here anymore
@@ -43,9 +48,9 @@ export default function TopPairs() {
                     // Use live ask price if available and valid, else the default/placeholder
                     const displayPrice = hasUsablePrice ? liveData?.ask : (liveData?.ask || pair.defaultPrice);
                     const priceColor = 'text-[#121926]';
-                    const priceState = liveData?.delayed ? 'Delayed'
-                        : liveData?.stale ? 'Stale'
-                            : liveData?.marketOpen === false ? 'Closed'
+                    const priceState = liveData?.marketOpen === false ? 'Closed'
+                        : liveData?.delayed ? 'Delayed'
+                            : liveData?.stale ? 'Stale'
                                 : '';
                     const canPrefill = hasUsablePrice && !liveData?.delayed && !liveData?.stale && liveData?.marketOpen !== false;
 
@@ -85,6 +90,14 @@ export default function TopPairs() {
                     );
                 })}
             </div>
+            {hasDelayedForex && (
+                <p className="text-[10px] text-[#9AA4B2] mt-3">
+                    Forex fallback rates by{' '}
+                    <a href="https://exchangerate.dev" target="_blank" rel="noreferrer" className="underline">
+                        exchangerate.dev
+                    </a>
+                </p>
+            )}
         </div>
     );
 }

@@ -10,7 +10,10 @@
     "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
     "test": "npm run test:prices",
     "test:prices": "npm run typecheck:scripts && ts-node scripts/test-price-engine.ts",
-    "smoke:prices": "npm run typecheck:scripts && ts-node scripts/smoke-price-engine.ts"
+    "test:ws": "npm run typecheck:scripts && ts-node scripts/test-ws-protocol.ts",
+    "test:limits": "npm run typecheck:scripts && ts-node scripts/test-ws-limits.ts",
+    "smoke:prices": "npm run typecheck:scripts && ts-node scripts/smoke-price-engine.ts",
+    "check:dist": "npm run build && git diff --exit-code -- dist && test -z \"$(git ls-files --others --exclude-standard -- dist)\""
   },
   "engines": {
     "node": ">=18"

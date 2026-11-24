@@ -47,6 +47,7 @@ export interface PriceEnginePairStatus {
     stale?: boolean;
     delayed?: boolean;
     marketOpen?: boolean;
+    alertEligible?: boolean;
     quoteAgeSeconds?: number;
 }
 
@@ -58,12 +59,12 @@ export interface PriceEngineStatus {
 
 /**
  * Parse a positive integer environment value, falling back to the default
- * and warning once when the value is invalid.
+ * and warning when the value is invalid.
  */
 export function readPositiveInt(value: string | undefined, fallback: number, name: string): number {
     if (value === undefined || value.trim() === '') return fallback;
     const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) return Math.floor(parsed);
+    if (Number.isFinite(parsed) && parsed >= 1) return Math.floor(parsed);
     console.warn(`[config] Ignoring invalid ${name}=${value}; using ${fallback}`);
     return fallback;
 }

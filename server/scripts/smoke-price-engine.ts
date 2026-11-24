@@ -34,6 +34,8 @@ engine.start();
 setTimeout(() => {
     const elapsed = Math.round((Date.now() - startedAt) / 1000);
     const failures: string[] = [];
+    const utcDay = new Date().getUTCDay();
+    const forexMarketExpectedOpen = utcDay !== 0 && utcDay !== 6;
 
     for (const pair of FOREX_PAIRS) {
         const quote = latest.get(pair);
@@ -44,8 +46,8 @@ setTimeout(() => {
         if (quote.source !== 'biquote') failures.push(`${pair}: source=${quote.source}, expected biquote`);
         if (quote.delayed) failures.push(`${pair}: delayed, expected realtime`);
         if (quote.stale) failures.push(`${pair}: stale, expected fresh`);
-        if (!quote.marketOpen) console.warn(`[smoke] ${pair}: market closed at test time`);
-        console.log(`[smoke] ${pair.padEnd(7)} ${quote.bid}/${quote.ask} source=${quote.source} delayed=${quote.delayed} stale=${quote.stale}`);
+        if (forexMarketExpectedOpen && !quote.marketOpen) failures.push(`${pair}: marketOpen=false during the trading week`);
+        console.log(`[smoke] ${pair.padEnd(7)} ${quote.bid}/${quote.ask} source=${quote.source} delayed=${quote.delayed} stale=${quote.stale} open=${quote.marketOpen}`);
     }
 
     for (const pair of CRYPTO_PAIRS) {
@@ -57,7 +59,8 @@ setTimeout(() => {
         if (quote.source !== 'coinbase') failures.push(`${pair}: source=${quote.source}, expected coinbase`);
         if (quote.delayed) failures.push(`${pair}: delayed, expected realtime`);
         if (quote.stale) failures.push(`${pair}: stale, expected fresh`);
-        console.log(`[smoke] ${pair.padEnd(7)} ${quote.bid}/${quote.ask} source=${quote.source} delayed=${quote.delayed} stale=${quote.stale}`);
+        if (!quote.marketOpen) failures.push(`${pair}: marketOpen=false, expected open`);
+        console.log(`[smoke] ${pair.padEnd(7)} ${quote.bid}/${quote.ask} source=${quote.source} delayed=${quote.delayed} stale=${quote.stale} open=${quote.marketOpen}`);
     }
 
     console.log(`[smoke] latest quotes for ${latest.size}/${APP_PAIRS.length} pairs after ${elapsed}s`);

@@ -47,6 +47,7 @@ export class CoinbaseProvider extends EventEmitter {
         this.stopped = false;
         this.connect();
         this.startSnapshotTimer();
+        void this.refreshSilentProducts();
     }
 
     public stop(): void {
@@ -142,7 +143,7 @@ export class CoinbaseProvider extends EventEmitter {
         }
 
         if (message.type !== 'ticker' || !message.product_id) return;
-        if (!PRODUCTS[message.product_id]) return;
+        if (!Object.prototype.hasOwnProperty.call(PRODUCTS, message.product_id)) return;
 
         // Cap UI and alert evaluation at 4 updates per second per product.
         const now = Date.now();
@@ -155,6 +156,7 @@ export class CoinbaseProvider extends EventEmitter {
 
     private emitQuote(productId: string, bidValue?: string, askValue?: string, timeValue?: string): void {
         if (this.stopped) return;
+        if (!Object.prototype.hasOwnProperty.call(PRODUCTS, productId)) return;
 
         const pair = PRODUCTS[productId];
         if (!pair) return;
@@ -189,14 +191,16 @@ export class CoinbaseProvider extends EventEmitter {
     /**
      * Ticker messages only fire on trades. Thin pairs such as LTC/USD can go
      * silent for long periods, so refresh any product without a tick in the
-     * last 10 seconds from Coinbase's public REST ticker. This keeps the
-     * primary source fresh without polling while the WebSocket is active.
+     * last few seconds from Coinbase's public REST ticker. The REST snapshot
+     * is timestamped at fetch time because bid/ask is current even when the
+     * last trade is old. The interval stays below the engine freshness window
+     * so the biquote fallback cannot win while Coinbase is silent.
      */
     private startSnapshotTimer(): void {
         if (this.snapshotTimer) return;
         this.snapshotTimer = setInterval(() => {
             void this.refreshSilentProducts();
-        }, 5000);
+        }, 2000);
         this.snapshotTimer.unref();
     }
 
@@ -205,7 +209,7 @@ export class CoinbaseProvider extends EventEmitter {
 
         const now = Date.now();
         for (const productId of Object.keys(PRODUCTS)) {
-            if (now - (this.lastTickerAt[productId] || 0) <= 10000) continue;
+            if (now - (this.lastTickerAt[productId] || 0) <= 2000) continue;
 
             try {
                 const response = await fetch(`https://api.exchange.coinbase.com/products/${productId}/ticker`, {
@@ -214,7 +218,9 @@ export class CoinbaseProvider extends EventEmitter {
                 if (!response.ok) continue;
 
                 const data = await response.json() as { bid?: string; ask?: string; time?: string };
-                this.emitQuote(productId, data.bid, data.ask, data.time);
+                // Do not use data.time here: it is the last trade time, which can
+                // be old on a thin pair even though bid/ask is current.
+                this.emitQuote(productId, data.bid, data.ask);
                 this.lastTickerAt[productId] = Date.now();
             } catch {
                 // The WebSocket remains the primary path; a REST miss is not fatal.

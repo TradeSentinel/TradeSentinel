@@ -285,6 +285,11 @@ export default function EditAlert() {
                                     {livePrice.delayed && (
                                         <p className="text-xs text-amber-600 mt-1 text-right">Delayed indicative feed</p>
                                     )}
+                                    {livePrice.source === 'exchangerate.dev' && (
+                                        <p className="text-[10px] text-gray-500 mt-1 text-right">
+                                            Rates by <a href="https://exchangerate.dev" target="_blank" rel="noreferrer" className="underline">exchangerate.dev</a>
+                                        </p>
+                                    )}
                                     {livePrice.stale && !livePrice.delayed && (
                                         <p className="text-xs text-amber-600 mt-1 text-right">Quote is stale</p>
                                     )}

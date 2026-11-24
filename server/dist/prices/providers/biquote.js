@@ -42,8 +42,23 @@ function parseBiquotePayload(payload) {
         const ask = Number(record.ask);
         if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0)
             continue;
-        const parsedTimestamp = record.timestamp ? Date.parse(record.timestamp) : NaN;
-        const timestamp = Number.isFinite(parsedTimestamp) ? Math.floor(parsedTimestamp / 1000) : 0;
+        const parsedTimestamp = (() => {
+            const raw = record.timestamp;
+            if (typeof raw === 'number')
+                return raw;
+            if (typeof raw === 'string' && raw.trim() !== '') {
+                const iso = Date.parse(raw);
+                if (Number.isFinite(iso))
+                    return iso;
+                const numeric = Number(raw);
+                if (Number.isFinite(numeric))
+                    return numeric;
+            }
+            return NaN;
+        })();
+        const timestamp = Number.isFinite(parsedTimestamp)
+            ? Math.floor(parsedTimestamp > 1e12 ? parsedTimestamp / 1000 : parsedTimestamp)
+            : 0;
         const rawAge = typeof record.quoteAgeSeconds === 'number'
             ? record.quoteAgeSeconds
             : typeof record.quoteAgeSeconds === 'string'

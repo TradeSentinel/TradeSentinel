@@ -76,6 +76,7 @@ export class ExchangerateProvider extends EventEmitter {
             }
 
             const payload = await response.json() as ExchangerateResponse;
+            if (this.stopped) return;
             const rates = payload.rates || {};
             const updatedMs = payload.data_updated_at ? Date.parse(payload.data_updated_at) : NaN;
             const timestamp = Number.isFinite(updatedMs)
@@ -100,7 +101,7 @@ export class ExchangerateProvider extends EventEmitter {
 
             let quoteCount = 0;
             for (const [pair, mid] of derived) {
-                if (!mid || !Number.isFinite(mid)) continue;
+                if (mid === undefined || !Number.isFinite(mid) || mid <= 0) continue;
                 const quote: ProviderQuote = {
                     pair,
                     bid: mid,

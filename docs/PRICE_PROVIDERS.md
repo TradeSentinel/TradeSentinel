@@ -20,8 +20,9 @@ Checked 2026-11-24. These notes are an engineering record, not legal advice.
 - No key required for the public feed: `wss://ws-feed.exchange.coinbase.com`.
 - Ticker messages include `best_bid`, `best_ask`, `price` and `time`.
 - We subscribe to BTC-USD, ETH-USD and LTC-USD on the `ticker` and `heartbeat` channels.
-- Ticker messages only fire on trades, so a product silent for 10 seconds is refreshed from the public REST ticker at `https://api.exchange.coinbase.com/products/{product}/ticker`. This keeps thin pairs such as LTC-USD fresh.
+- Ticker messages only fire on trades, so a product silent for about 2 seconds is refreshed from the public REST ticker every 2 seconds. The REST snapshot is timestamped at fetch time because bid/ask is current even when the last trade is old. This keeps thin pairs such as LTC-USD fresh.
 - Source: https://docs.cdp.coinbase.com/exchange/websocket-feed/overview
+- Coinbase's full market data terms were not copied here. Confirm commercial display and redistribution terms with Coinbase before relying on this feed for a commercial product.
 
 ## exchangerate.dev (delayed forex fallback)
 

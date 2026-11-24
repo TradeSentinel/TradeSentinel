@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 
 // WebSocket server URL
 const WS_SERVER_URL = import.meta.env.VITE_WS_SERVER_URL || 'ws://localhost:8787';
+const INSECURE_PRODUCTION = Boolean(import.meta.env.PROD && (!import.meta.env.VITE_WS_SERVER_URL || !import.meta.env.VITE_WS_SERVER_URL.startsWith('wss://')));
 
 // Keep track of the WebSocket connection
 let wsConnection: WebSocket | null = null;
@@ -13,6 +14,9 @@ let tokenRegistrationInProgress = false;
  * Connect to the WebSocket server
  */
 export const connectToWebSocketServer = (): Promise<WebSocket> => {
+    if (INSECURE_PRODUCTION) {
+        return Promise.reject(new Error('A wss:// VITE_WS_SERVER_URL is required in production.'));
+    }
     return new Promise((resolve, reject) => {
         if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
             return resolve(wsConnection);
@@ -147,14 +151,15 @@ export const registerFcmToken = async (): Promise<boolean> => {
         });
 
         if (fcmToken) {
-            console.log('FCM token obtained:', fcmToken);
+            console.log('FCM token obtained (suffix):', fcmToken.slice(-6));
             // After obtaining the token, connect to WebSocket and send it
             const socket = await connectToWebSocketServer();
-            // Send the token to the server
+            const idToken = await user.getIdToken();
+            // The server verifies the ID token and derives the UID itself.
             const message = {
                 type: 'register_token',
-                userId: user.uid,
-                fcmToken: fcmToken
+                idToken,
+                fcmToken
             };
             socket.send(JSON.stringify(message));
             console.log('Sent FCM token registration message');

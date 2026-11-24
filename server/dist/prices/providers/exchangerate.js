@@ -62,6 +62,8 @@ class ExchangerateProvider extends events_1.EventEmitter {
                 throw new Error(`HTTP ${response.status}`);
             }
             const payload = await response.json();
+            if (this.stopped)
+                return;
             const rates = payload.rates || {};
             const updatedMs = payload.data_updated_at ? Date.parse(payload.data_updated_at) : NaN;
             const timestamp = Number.isFinite(updatedMs)
@@ -84,7 +86,7 @@ class ExchangerateProvider extends events_1.EventEmitter {
             ];
             let quoteCount = 0;
             for (const [pair, mid] of derived) {
-                if (!mid || !Number.isFinite(mid))
+                if (mid === undefined || !Number.isFinite(mid) || mid <= 0)
                     continue;
                 const quote = {
                     pair,

@@ -15,6 +15,7 @@ interface ProviderLike extends EventEmitter {
 interface PriceEngineOptions {
     freshMs?: number;
     maxSourceAgeSeconds?: number;
+    maxAlertSourceAgeSeconds?: number;
 }
 
 /**
@@ -34,13 +35,16 @@ export class PriceEngine extends EventEmitter {
     private readonly providers: ProviderLike[];
     private readonly freshMs: number;
     private readonly maxSourceAgeSeconds: number;
+    private readonly maxAlertSourceAgeSeconds: number;
     private started = false;
 
     constructor(options: PriceEngineOptions = {}) {
         super();
         this.freshMs = options.freshMs ?? readPositiveInt(process.env.PRICE_STALE_MS, 5000, 'PRICE_STALE_MS');
         this.maxSourceAgeSeconds = options.maxSourceAgeSeconds
-            ?? readPositiveInt(process.env.PRICE_MAX_SOURCE_AGE_SECONDS, 10, 'PRICE_MAX_SOURCE_AGE_SECONDS');
+            ?? readPositiveInt(process.env.PRICE_MAX_SOURCE_AGE_SECONDS, 30, 'PRICE_MAX_SOURCE_AGE_SECONDS');
+        this.maxAlertSourceAgeSeconds = options.maxAlertSourceAgeSeconds
+            ?? readPositiveInt(process.env.PRICE_ALERT_MAX_SOURCE_AGE_SECONDS, 10, 'PRICE_ALERT_MAX_SOURCE_AGE_SECONDS');
 
         this.providers = [
             new BiquoteProvider(),
@@ -112,11 +116,12 @@ export class PriceEngine extends EventEmitter {
         if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0) return true;
 
         const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60) return true;
         return sourceAgeSeconds > this.maxSourceAgeSeconds;
     }
 
     public canTriggerAlerts(quote: Quote): boolean {
-        return !quote.delayed && quote.marketOpen && !this.isStale(quote);
+        return !quote.delayed && quote.marketOpen && !this.isStale(quote) && this.isAlertFresh(quote);
     }
 
     public getSnapshot(pairs: string[]): Quote[] {
@@ -150,6 +155,7 @@ export class PriceEngine extends EventEmitter {
                     stale: this.isStale(quote),
                     delayed: quote.delayed,
                     marketOpen: quote.marketOpen,
+                    alertEligible: this.canTriggerAlerts(quote),
                     quoteAgeSeconds: quote.quoteAgeSeconds
                 };
             })
@@ -162,7 +168,22 @@ export class PriceEngine extends EventEmitter {
         if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0) return true;
 
         const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60) return true;
         return sourceAgeSeconds > this.maxSourceAgeSeconds;
+    }
+
+    /**
+     * Display freshness is deliberately looser than alert freshness so a thin
+     * pair can still be shown without allowing a notification on an old tick.
+     */
+    private isAlertFresh(quote: Quote): boolean {
+        if (quote.providerStale) return false;
+        if (quote.quoteAgeSeconds !== undefined && quote.quoteAgeSeconds > this.maxAlertSourceAgeSeconds) return false;
+        if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0) return false;
+
+        const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        if (sourceAgeSeconds < -60) return false;
+        return sourceAgeSeconds <= this.maxAlertSourceAgeSeconds;
     }
 
     private formatPrice(pair: string, value: number): string {

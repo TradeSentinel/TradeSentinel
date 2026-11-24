@@ -3,7 +3,7 @@ import { PriceEngine } from '../src/prices/engine';
 import { parseBiquotePayload } from '../src/prices/providers/biquote';
 
 const now = Math.floor(Date.now() / 1000);
-const options = { freshMs: 5000, maxSourceAgeSeconds: 10 };
+const options = { freshMs: 5000, maxSourceAgeSeconds: 10, maxAlertSourceAgeSeconds: 10 };
 
 function freshQuote(overrides: Partial<Parameters<PriceEngine['ingest']>[0]> = {}) {
     return {
@@ -53,6 +53,15 @@ assert.equal(arrayQuotes[0].providerStale, true);
 assert.equal(arrayQuotes[0].timestamp, 0);
 console.log('PASS parser: array payload and stale flag');
 
+// Parser: numeric epoch seconds and milliseconds.
+const secondsPayload = [{ symbol: 'USDJPY', bid: 159.1, ask: 159.11, timestamp: now, marketState: 'open' }];
+assert.equal(parseBiquotePayload(secondsPayload)[0].timestamp, now);
+const millisPayload = [{ symbol: 'USDJPY', bid: 159.1, ask: 159.11, timestamp: now * 1000, marketState: 'open' }];
+assert.equal(parseBiquotePayload(millisPayload)[0].timestamp, now);
+const stringSecondsPayload = [{ symbol: 'USDJPY', bid: 159.1, ask: 159.11, timestamp: String(now), marketState: 'open' }];
+assert.equal(parseBiquotePayload(stringSecondsPayload)[0].timestamp, now);
+console.log('PASS parser: numeric, millisecond and numeric-string timestamps');
+
 assert.deepEqual(parseBiquotePayload({ EURUSD: { bid: 0, ask: 0 } }), []);
 assert.deepEqual(parseBiquotePayload(null), []);
 console.log('PASS parser: invalid records rejected');
@@ -72,6 +81,32 @@ for (const testCase of [
     assert.equal(engine.canTriggerAlerts(quote), testCase.expected, testCase.name);
     console.log(`PASS gate: ${testCase.name} -> ${testCase.expected}`);
 }
+
+// Display freshness and alert freshness are separate. A thin-pair quote can
+// be shown without being allowed to trigger a notification.
+const twoTier = new PriceEngine({ freshMs: 5000, maxSourceAgeSeconds: 30, maxAlertSourceAgeSeconds: 10 });
+twoTier.ingest(freshQuote({ timestamp: now - 20 }));
+const twoTierQuote = twoTier.getSnapshot(['EURUSD'])[0];
+assert.equal(twoTier.isStale(twoTierQuote), false);
+assert.equal(twoTier.canTriggerAlerts(twoTierQuote), false);
+console.log('PASS gate: 20s quote is display-fresh but not alert-fresh');
+
+// Production defaults: a 5s quote triggers, a 20s quote does not.
+const defaults = new PriceEngine();
+defaults.ingest(freshQuote({ timestamp: now - 5 }));
+assert.equal(defaults.canTriggerAlerts(defaults.getSnapshot(['EURUSD'])[0]), true);
+
+const defaultsOld = new PriceEngine();
+defaultsOld.ingest(freshQuote({ timestamp: now - 20 }));
+assert.equal(defaultsOld.canTriggerAlerts(defaultsOld.getSnapshot(['EURUSD'])[0]), false);
+console.log('PASS gate: production defaults enforce the tighter alert threshold');
+
+const future = new PriceEngine(options);
+future.ingest(freshQuote({ timestamp: now + 3600 }));
+const futureQuote = future.getSnapshot(['EURUSD'])[0];
+assert.equal(future.isStale(futureQuote), true);
+assert.equal(future.canTriggerAlerts(futureQuote), false);
+console.log('PASS gate: future-dated quote rejected');
 
 // Preferred source suppression and fallback promotion.
 const priority = new PriceEngine(options);

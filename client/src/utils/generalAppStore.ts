@@ -43,7 +43,7 @@ export type State = {
   newAlert: generalAlertType,
   showAlertInfo: boolean,
   currentInfo: generalAlertType | null,
-  topPairsLivePrices: Record<string, { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean }>,
+  topPairsLivePrices: Record<string, { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean, source?: string }>,
   topPairsWsStatus: WsStatus
 }
 
@@ -61,7 +61,7 @@ export type Actions = {
   updateNewAlert: (alert: Partial<generalAlertType>) => void,
   removeAlertFromLists: (alertId: string) => void,
   updateAlertInLists: (updatedAlert: generalAlertType) => void,
-  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean }) => void,
+  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean, source?: string }) => void,
   initTopPairsWebSocket: () => void,
   closeTopPairsWebSocket: () => void,
   reconnectTopPairsWebSocket: () => void
@@ -147,7 +147,7 @@ export const useGeneralAppStore = create<State & Actions>((set, get) => ({
         currentInfo: state.currentInfo?.id === updatedAlert.id ? updatedAlert : state.currentInfo
       };
     }),
-  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null }) =>
+  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean, source?: string }) =>
     set((state) => ({
       topPairsLivePrices: {
         ...state.topPairsLivePrices,
@@ -188,7 +188,8 @@ export const useGeneralAppStore = create<State & Actions>((set, get) => ({
           timestamp: quote.timestamp,
           stale: quote.stale,
           delayed: quote.delayed,
-          marketOpen: quote.marketOpen
+          marketOpen: quote.marketOpen,
+          source: quote.source
         });
         if (get().topPairsWsStatus !== 'subscribed') {
           set({ topPairsWsStatus: 'subscribed' });
