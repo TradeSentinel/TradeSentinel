@@ -3,7 +3,7 @@ import { auth } from "./firebaseInit";
 import { toast } from "react-toastify";
 
 // WebSocket server URL
-const WS_SERVER_URL = import.meta.env.VITE_WS_SERVER_URL || 'ws://localhost:8080';
+const WS_SERVER_URL = import.meta.env.VITE_WS_SERVER_URL || 'ws://localhost:8787';
 
 // Keep track of the WebSocket connection
 let wsConnection: WebSocket | null = null;
@@ -141,7 +141,7 @@ export const registerFcmToken = async (): Promise<boolean> => {
         console.log('Attempting to get FCM token...');
         const messaging = getMessaging();
         const swRegistration = await navigator.serviceWorker.ready;
-        let fcmToken = await getToken(messaging, {
+        const fcmToken = await getToken(messaging, {
             vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
             serviceWorkerRegistration: swRegistration
         });
@@ -165,21 +165,25 @@ export const registerFcmToken = async (): Promise<boolean> => {
             tokenRegistrationInProgress = false;
             throw new Error('Failed to obtain FCM token. Permission might not be granted or token generation failed.');
         }
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error during FCM token acquisition or initial WebSocket send:', error);
         tokenRegistrationInProgress = false;
         let specificMessage = 'Failed to get or send notification token.';
 
-        if (error.name === 'AbortError') {
+        const errorName = error instanceof Error ? error.name : '';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorCode = (error as { code?: unknown }).code;
+
+        if (errorName === 'AbortError') {
             specificMessage = 'Subscription failed: No active Service Worker. Please ensure permissions are granted and try again.';
-        } else if (error.code && typeof error.code === 'string' && error.code.includes('messaging/')) {
-            specificMessage = `Firebase messaging error: ${error.message}`;
-        } else if (error.message) {
-            specificMessage = error.message; // Covers WebSocket connection errors that make it here
+        } else if (typeof errorCode === 'string' && errorCode.includes('messaging/')) {
+            specificMessage = `Firebase messaging error: ${errorMessage}`;
+        } else if (errorMessage) {
+            specificMessage = errorMessage; // Covers WebSocket connection errors that make it here
         }
 
-        const errToThrow = new Error(specificMessage);
-        (errToThrow as any).originalError = error;
+        const errToThrow = new Error(specificMessage) as Error & { originalError?: unknown };
+        errToThrow.originalError = error;
         throw errToThrow;
     }
 };

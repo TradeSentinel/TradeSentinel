@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../../components/homeComponents/PageHeader";
 import MiniLoader from "../../components/MiniLoader";
 import CurrencyPairs from "../../components/homeComponents/CurrencyPairs";
@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useGeneralAppStore } from "../../utils/generalAppStore";
 import { db } from "../../utils/firebaseInit";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { LivePrice, WsParams, WsStatus } from "../../types/websocket"; // Import types
+import { LivePrice, WsStatus } from "../../types/websocket";
+import { priceSocket } from "../../utils/priceSocket";
 
 export default function CreateAlert() {
     const navigateTo = useNavigate();
@@ -29,10 +30,8 @@ export default function CreateAlert() {
     const { currencyPair, alertType, triggerPrice, notificationPreferences } = newAlert;
     const { pairModal, alertTypeModal } = showModals;
 
-    // WebSocket related state
-    const [wsInstance, setWsInstance] = useState<WebSocket | null>(null);
+    // Live price state
     const [livePrice, setLivePrice] = useState<LivePrice>({ ask: '', bid: '', timestamp: null });
-    const wsParamsRef = useRef<WsParams>({ mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null });
     const [wsStatus, setWsStatus] = useState<WsStatus>('disconnected');
 
     const updateShowModals = (name: modalType, value: boolean) => {
@@ -43,156 +42,41 @@ export default function CreateAlert() {
     };
 
     useEffect(() => {
-        // Cleanup function to close WebSocket when component unmounts or currencyPair changes
-        return () => {
-            if (wsInstance) {
-                wsInstance.close();
-                setWsInstance(null);
-                setWsStatus('disconnected');
-                setLivePrice({ ask: '', bid: '', timestamp: null });
-            }
-        };
-    }, [wsInstance]);
-
-
-    useEffect(() => {
-        if (!currencyPair || !import.meta.env.VITE_XCHANGE_API) {
-            if (wsInstance) {
-                console.log('[currencyPair useEffect] No currencyPair/API key, closing existing wsInstance:', wsInstance.url);
-                wsInstance.close();
-                setWsInstance(null);
-            }
-            setWsStatus('disconnected'); // Explicitly set to disconnected if no pair/key
+        if (!currencyPair) {
+            setWsStatus('disconnected');
             setLivePrice({ ask: '', bid: '', timestamp: null });
-            wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
             return;
         }
 
-        // If a new currencyPair is selected, we always intend to start a new connection sequence.
-        // First, ensure any existing wsInstance is commanded to close.
-        if (wsInstance) {
-            console.log('[currencyPair useEffect] New pair. Closing old wsInstance:', wsInstance.url);
-            wsInstance.close();
-            setWsInstance(null); // This will trigger its dedicated cleanup effect.
-        }
-
-        console.log(`[currencyPair useEffect] Initiating new WebSocket for ${currencyPair}`);
         setWsStatus('connecting');
         setLivePrice({ ask: '', bid: '', timestamp: null });
-        wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
 
-        const newSocket = new WebSocket(`wss://api.xchangeapi.com/websocket/live?api-key=${import.meta.env.VITE_XCHANGE_API}`);
-        let isCurrentSocket = true; // Flag to track if this newSocket is still the intended one
+        const unsubscribeQuote = priceSocket.subscribe(currencyPair, (quote) => {
+            setLivePrice({
+                ask: quote.ask,
+                bid: quote.bid,
+                timestamp: quote.timestamp,
+                stale: quote.stale,
+                delayed: quote.delayed,
+                source: quote.source
+            });
+            setWsStatus('subscribed');
+        });
 
-        newSocket.onopen = () => {
-            if (!isCurrentSocket) return; // Stale socket, do nothing
-            console.log(`[newSocket.onopen] WebSocket connected for ${currencyPair}`);
-            setWsInstance(newSocket);
-            setWsStatus('connected');
-            const formattedPair = currencyPair.replace('/', '');
-            newSocket.send(JSON.stringify({ "pairs": [formattedPair] }));
-        };
-
-        newSocket.onmessage = (event) => {
-            if (!isCurrentSocket) return; // Stale socket
-            const message = event.data as string;
-            const messageCode = message.substring(0, 1);
-            const messageBody = message.substring(1);
-            try {
-                if (messageCode === '0') {
-                    const initialData = JSON.parse(messageBody);
-                    wsParamsRef.current = {
-                        mapping: initialData.mapping, order: initialData.order,
-                        startTime: initialData.start_time, timeMult: initialData.time_mult,
-                        sessionUID: initialData.session_uid
-                    };
-                    setWsStatus('subscribed');
-                    console.log('WebSocket subscribed, params set (ref):', wsParamsRef.current);
-                } else if (messageCode === '1') {
-                    const currentWsParams = wsParamsRef.current;
-                    if (currentWsParams.order && currentWsParams.mapping && currentWsParams.startTime && currentWsParams.timeMult) {
-                        console.log('[WebSocket TYPE 1] Raw body:', messageBody);
-                        const parts = messageBody.split('|');
-                        const update: Record<string, string | number> = {};
-                        currentWsParams.order.forEach((key, index) => { update[key] = parts[index]; });
-                        const pairId = update.name as string;
-                        const pairName = currentWsParams.mapping[pairId];
-                        const formattedAppCurrencyPair = currencyPair.replace('/', '');
-                        console.log(`[WebSocket TYPE 1] Comparing: API pairName (${pairId} -> ${pairName}) vs App formatted pair (${formattedAppCurrencyPair})`);
-
-                        if (pairName === formattedAppCurrencyPair) {
-                            console.log('[WebSocket TYPE 1] Match! Processing price for:', pairName);
-                            const ask = update.ask as string;
-                            const bid = update.bid as string;
-                            const relativeTime = parseFloat(update.time as string);
-                            const fullTimestamp = currentWsParams.startTime + (relativeTime / currentWsParams.timeMult);
-                            console.log(`[WebSocket TYPE 1] Setting live price - Ask: ${ask}, Bid: ${bid}, Timestamp: ${fullTimestamp}`);
-                            setLivePrice({ ask, bid, timestamp: fullTimestamp });
-                        } else {
-                            console.log('[WebSocket TYPE 1] No match for currency pair.');
-                        }
-                    }
-                } else if (messageCode === '2') {
-                    // console.log('WebSocket Ping received');
-                    // Optionally send a pong if required by the server, though xchange.md says PING/PONG is disabled
-                } else if (messageCode === '7' || messageCode === '9') {
-                    const errorData = JSON.parse(messageBody);
-                    console.error('WebSocket Error Message:', errorData);
-                    toast(`WebSocket Error: ${errorData.error}`, { type: "error" });
-                    setWsStatus('error');
-                }
-            } catch (e) {
-                console.error('Error processing WebSocket message:', e);
-            }
-        };
-
-        newSocket.onerror = (error) => {
-            if (!isCurrentSocket) return; // Stale socket
-            console.error(`[newSocket.onerror] WebSocket error for ${currencyPair}:`, error);
-            toast('WebSocket connection error.', { type: "error" });
-            setWsStatus('error');
-            // No need to setWsInstance(null) here, onclose will handle if it was the active one.
-        };
-
-        newSocket.onclose = (event) => {
-            if (!isCurrentSocket) return; // Stale socket
-            console.log(`[newSocket.onclose] WebSocket disconnected for ${currencyPair}:`, event.reason);
-            // Only set to disconnected if this socket was indeed the active one being managed
-            // or if no other valid instance has taken over.
-            // The wsInstance cleanup effect is the primary place for nullifying wsInstance.
-            setWsStatus('disconnected');
-            // if (wsInstance === newSocket) { // This check might be tricky due to timing
-            //    setWsInstance(null); // Let the other effect handle it after this status update
-            // }
-        };
+        const unsubscribeStatus = priceSocket.onStatus((status) => {
+            setWsStatus((current) => {
+                if (status === 'error') return 'error';
+                if (status === 'disconnected') return 'disconnected';
+                if (status === 'subscribed') return current === 'subscribed' ? 'subscribed' : 'connected';
+                return status;
+            });
+        });
 
         return () => {
-            console.log(`[currencyPair useEffect Cleanup] for ${currencyPair}. Setting isCurrentSocket=false.`);
-            isCurrentSocket = false; // Mark this newSocket instance as stale for its callbacks
-            // If newSocket was created but never made it to wsInstance (e.g., user changed pair again quickly)
-            // and it's not yet closed, close it now.
-            if (newSocket.readyState < WebSocket.CLOSING) {
-                console.log(`[currencyPair useEffect Cleanup] Actively closing non-current newSocket for ${currencyPair}`);
-                newSocket.close();
-            }
+            unsubscribeQuote();
+            unsubscribeStatus();
         };
-
     }, [currencyPair]);
-
-    // Effect for cleaning up the wsInstance when it changes or component unmounts
-    useEffect(() => {
-        const currentWs = wsInstance; // Capture instance for this specific cleanup
-        return () => {
-            if (currentWs) {
-                console.log('[wsInstance useEffect Cleanup] Closing WebSocket identified as currentWs:', currentWs.url);
-                currentWs.close();
-                // Reset states associated with an active connection
-                // wsStatus will be handled by onclose of the socket, or by the next pair's connecting status
-                setLivePrice({ ask: '', bid: '', timestamp: null });
-                wsParamsRef.current = { mapping: null, order: null, startTime: null, timeMult: null, sessionUID: null };
-            }
-        };
-    }, [wsInstance]); // This effect runs when wsInstance is explicitly set or set to null
 
 
     useEffect(() => {
@@ -340,6 +224,12 @@ export default function CreateAlert() {
                                         <p className="text-xs text-gray-500 mt-1 text-right">
                                             Updated: {new Date(livePrice.timestamp * 1000).toLocaleTimeString()}
                                         </p>
+                                    )}
+                                    {livePrice.delayed && (
+                                        <p className="text-xs text-amber-600 mt-1 text-right">Delayed indicative feed</p>
+                                    )}
+                                    {livePrice.stale && !livePrice.delayed && (
+                                        <p className="text-xs text-amber-600 mt-1 text-right">Quote is stale</p>
                                     )}
                                 </div>
                             ) : wsStatus === 'connecting' || (wsStatus === 'connected' && !livePrice.ask) ? (
