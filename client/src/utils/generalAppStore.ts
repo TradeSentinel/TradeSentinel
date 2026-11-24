@@ -43,7 +43,7 @@ export type State = {
   newAlert: generalAlertType,
   showAlertInfo: boolean,
   currentInfo: generalAlertType | null,
-  topPairsLivePrices: Record<string, { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean }>,
+  topPairsLivePrices: Record<string, { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean }>,
   topPairsWsStatus: WsStatus
 }
 
@@ -61,7 +61,7 @@ export type Actions = {
   updateNewAlert: (alert: Partial<generalAlertType>) => void,
   removeAlertFromLists: (alertId: string) => void,
   updateAlertInLists: (updatedAlert: generalAlertType) => void,
-  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean }) => void,
+  updateTopPairLivePrice: (pair: string, priceData: { ask: string, bid: string, timestamp: number | null, stale?: boolean, delayed?: boolean, marketOpen?: boolean }) => void,
   initTopPairsWebSocket: () => void,
   closeTopPairsWebSocket: () => void,
   reconnectTopPairsWebSocket: () => void
@@ -187,7 +187,8 @@ export const useGeneralAppStore = create<State & Actions>((set, get) => ({
           bid: quote.bid,
           timestamp: quote.timestamp,
           stale: quote.stale,
-          delayed: quote.delayed
+          delayed: quote.delayed,
+          marketOpen: quote.marketOpen
         });
         if (get().topPairsWsStatus !== 'subscribed') {
           set({ topPairsWsStatus: 'subscribed' });

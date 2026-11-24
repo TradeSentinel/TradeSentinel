@@ -36,11 +36,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const ws_1 = require("ws");
+const ws_1 = __importStar(require("ws"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const admin = __importStar(require("firebase-admin"));
 const nodemailer_1 = __importDefault(require("nodemailer")); // Added nodemailer import
-const xchangeService_1 = require("./xchangeService"); // Import XChangeService
+const http_1 = __importDefault(require("http"));
+const engine_1 = require("./prices/engine");
+const pairs_1 = require("./prices/pairs");
 const path_1 = __importDefault(require("path")); // Import path module
 const fs_1 = __importDefault(require("fs")); // Import fs module
 // Store active alerts in memory for price checking
@@ -91,7 +93,6 @@ else {
     // process.exit(1); // Optionally exit if Firebase is critical
 }
 const PORT = process.env.PORT || 8080;
-const XCHANGE_API_KEY = process.env.XCHANGE_API_KEY;
 // Nodemailer Transporter Setup
 const mailTransporter = nodemailer_1.default.createTransport({
     host: process.env.SMTP_HOST,
@@ -110,17 +111,104 @@ mailTransporter.verify((error, success) => {
         console.log('[Nodemailer] SMTP Connection verified. Server is ready to take messages.');
     }
 });
-const wss = new ws_1.WebSocketServer({ port: Number(PORT) });
-wss.on('listening', () => {
-    console.log(`Trade Sentinel WebSocket server started on port ${PORT}`);
+const priceEngine = new engine_1.PriceEngine();
+const priceSubscriptions = new Map();
+function sendJson(ws, payload) {
+    if (ws.readyState !== ws_1.default.OPEN)
+        return;
+    if (ws.bufferedAmount > 1000000) {
+        ws.terminate();
+        return;
+    }
+    ws.send(JSON.stringify(payload));
+}
+function snapshotPayload(quote) {
+    return {
+        ...quote,
+        displayPair: (0, pairs_1.displayPair)(quote.pair),
+        stale: priceEngine.isStale(quote)
+    };
+}
+function broadcastPriceStatus(status) {
+    for (const ws of priceSubscriptions.keys()) {
+        sendJson(ws, { type: 'price_status', status });
+    }
+}
+function broadcastPrice(quote) {
+    const payload = {
+        type: 'price',
+        pair: quote.pair,
+        displayPair: (0, pairs_1.displayPair)(quote.pair),
+        bid: quote.bid,
+        ask: quote.ask,
+        timestamp: quote.timestamp,
+        source: quote.source,
+        stale: priceEngine.isStale(quote),
+        delayed: quote.delayed,
+        marketOpen: quote.marketOpen,
+        quoteAgeSeconds: quote.quoteAgeSeconds,
+        receivedAt: quote.receivedAt
+    };
+    for (const [ws, pairs] of priceSubscriptions) {
+        if (pairs.has(quote.pair)) {
+            sendJson(ws, payload);
+        }
+    }
+}
+const httpServer = http_1.default.createServer((req, res) => {
+    if (req.url === '/health') {
+        const status = priceEngine.getStatus();
+        const connectedProviders = status.providers.filter(provider => provider.state === 'connected').length;
+        const freshPairs = status.pairs.filter(pair => !pair.missing && !pair.stale && !pair.delayed && pair.marketOpen).length;
+        const ok = connectedProviders > 0 && freshPairs > 0;
+        res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            ok,
+            connectedProviders,
+            freshPairs,
+            firebase: firebaseInitialized,
+            prices: status
+        }));
+        return;
+    }
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+});
+const wss = new ws_1.WebSocketServer({ server: httpServer, maxPayload: 64 * 1024 });
+const aliveClients = new WeakSet();
+const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+        if (!aliveClients.has(ws)) {
+            ws.terminate();
+            continue;
+        }
+        aliveClients.delete(ws);
+        ws.ping();
+    }
+}, 30000);
+heartbeat.unref();
+wss.on('close', () => clearInterval(heartbeat));
+httpServer.listen(Number(PORT), () => {
+    console.log(`Trade Sentinel server started on port ${PORT} (WebSocket + /health)`);
 });
 wss.on('connection', (wsClient) => {
     console.log('Client connected to Trade Sentinel WebSocket server');
+    aliveClients.add(wsClient);
+    wsClient.on('pong', () => aliveClients.add(wsClient));
+    let messageCount = 0;
+    let messageWindowStartedAt = Date.now();
     wsClient.on('message', async (message) => {
+        if (Date.now() - messageWindowStartedAt > 10000) {
+            messageCount = 0;
+            messageWindowStartedAt = Date.now();
+        }
+        messageCount++;
+        if (messageCount > 100) {
+            wsClient.close(1008, 'Rate limit exceeded');
+            return;
+        }
         try {
             const messageStr = message.toString();
-            console.log('Received message from client:', messageStr);
-            // Parse the message
             const parsedMessage = JSON.parse(messageStr);
             // Handle different message types
             switch (parsedMessage.type) {
@@ -144,6 +232,50 @@ wss.on('connection', (wsClient) => {
                         }));
                     }
                     break;
+                case 'subscribe_prices': {
+                    let subscriptions = priceSubscriptions.get(wsClient);
+                    if (!subscriptions) {
+                        subscriptions = new Set();
+                        priceSubscriptions.set(wsClient, subscriptions);
+                    }
+                    const requestedPairs = Array.isArray(parsedMessage.pairs)
+                        ? parsedMessage.pairs
+                            .map((pair) => (0, pairs_1.normalizePair)(String(pair)))
+                            .filter(pairs_1.isSupportedPair)
+                        : [];
+                    for (const pair of requestedPairs) {
+                        subscriptions.add(pair);
+                    }
+                    sendJson(wsClient, {
+                        type: 'subscribed_prices',
+                        pairs: Array.from(subscriptions),
+                        status: priceEngine.getStatus()
+                    });
+                    const snapshot = priceEngine.getSnapshot(Array.from(subscriptions));
+                    if (snapshot.length > 0) {
+                        sendJson(wsClient, {
+                            type: 'price_snapshot',
+                            quotes: snapshot.map(snapshotPayload)
+                        });
+                    }
+                    break;
+                }
+                case 'unsubscribe_prices': {
+                    const subscriptions = priceSubscriptions.get(wsClient);
+                    const pairsToRemove = Array.isArray(parsedMessage.pairs)
+                        ? parsedMessage.pairs.map((pair) => (0, pairs_1.normalizePair)(String(pair)))
+                        : [];
+                    if (subscriptions) {
+                        for (const pair of pairsToRemove) {
+                            subscriptions.delete(pair);
+                        }
+                    }
+                    sendJson(wsClient, {
+                        type: 'unsubscribed_prices',
+                        pairs: subscriptions ? Array.from(subscriptions) : []
+                    });
+                    break;
+                }
                 // Handle other message types as needed
                 default:
                     console.log(`[WebSocket] Received unsupported message type: ${parsedMessage.type}`);
@@ -164,6 +296,7 @@ wss.on('connection', (wsClient) => {
         }
     });
     wsClient.on('close', () => {
+        priceSubscriptions.delete(wsClient);
         console.log('Client disconnected');
     });
     wsClient.on('error', (error) => {
@@ -175,43 +308,31 @@ wss.on('connection', (wsClient) => {
         message: 'Welcome to Trade Sentinel WebSocket Server!',
         status: {
             firebase: firebaseInitialized,
-            xchange: xchangeServiceInstance ? 'connected' : 'disconnected'
+            prices: priceEngine.getStatus().providers.map(provider => ({
+                id: provider.id,
+                state: provider.state
+            }))
         },
         timestamp: Date.now()
     }));
 });
 console.log('Trade Sentinel Server starting...');
-let xchangeServiceInstance = null;
 async function manageAlertSubscriptions() {
-    console.log(`[manageAlertSubscriptions DEBUG] ENTER. currentActiveAlerts before fetch: ${currentActiveAlerts.map(a => `${a.id} (status: ${a.status})`).join(', ')}`);
     if (!firebaseInitialized) {
-        console.log('[manageAlertSubscriptions] Firebase not initialized. Skipping subscription management.');
         return;
     }
-    if (!xchangeServiceInstance) {
-        console.log('[manageAlertSubscriptions] XChangeService not initialized. Skipping subscription management.');
-        return;
-    }
-    console.log('[manageAlertSubscriptions] Fetching active alerts to update subscriptions...');
     try {
         const db = admin.firestore();
-        // This is a collection group query. Requires an index.
         const activeAlertsQuery = db.collectionGroup('alerts')
             .where('status', '==', 'active')
-            .orderBy('createdAt', 'asc'); // Matches your existing working index
-        const pausedAlertsQuery = db.collectionGroup('alerts')
-            .where('status', '==', 'paused')
-            .orderBy('createdAt', 'asc'); // Matches your existing working index
-        const [activeSnapshot, pausedSnapshot] = await Promise.all([
-            activeAlertsQuery.get(),
-            pausedAlertsQuery.get()
-        ]);
-        const activePairs = new Set();
-        // Update our in-memory store of active alerts (for price checking)
+            .orderBy('createdAt', 'asc');
+        const activeSnapshot = await activeAlertsQuery.get();
         const newActiveAlerts = [];
         activeSnapshot.forEach(doc => {
             const data = doc.data();
-            const alert = {
+            if (!data.currencyPair)
+                return;
+            newActiveAlerts.push({
                 id: doc.id,
                 userId: data.userId,
                 currencyPair: data.currencyPair,
@@ -220,51 +341,13 @@ async function manageAlertSubscriptions() {
                 triggerPrice: data.triggerPrice,
                 notificationPreferences: data.notificationPreferences || { email: false, push: false },
                 createdAt: data.createdAt
-            };
-            if (alert.currencyPair) {
-                activePairs.add(alert.currencyPair.replace('/', ''));
-                newActiveAlerts.push(alert);
-            }
+            });
         });
-        // Update the global store with the new list of active alerts
         currentActiveAlerts = newActiveAlerts;
-        console.log(`[manageAlertSubscriptions DEBUG] Fetched ${newActiveAlerts.length} alerts from Firestore: ${newActiveAlerts.map(a => `${a.id} (status: ${a.status})`).join(', ')}`);
-        console.log(`[manageAlertSubscriptions DEBUG] currentActiveAlerts updated. Count: ${currentActiveAlerts.length}. Pairs: ${currentActiveAlerts.map(a => a.currencyPair).join(', ')}`);
-        // Continue collecting all currency pairs we need to monitor (including paused alerts)
-        pausedSnapshot.forEach(doc => {
-            const alert = doc.data();
-            if (alert.currencyPair) {
-                activePairs.add(alert.currencyPair.replace('/', ''));
-            }
-        });
-        const pairsToSubscribe = Array.from(activePairs);
-        const currentlySubscribed = xchangeServiceInstance.getSubscribedPairs(); // Assuming this method exists
-        // Determine pairs to add and remove
-        const pairsToAdd = pairsToSubscribe.filter(p => !currentlySubscribed.includes(p));
-        const pairsToRemove = currentlySubscribed.filter(p => !pairsToSubscribe.includes(p));
-        if (pairsToAdd.length > 0) {
-            console.log('[manageAlertSubscriptions] Subscribing to new pairs:', pairsToAdd);
-            xchangeServiceInstance.subscribe(pairsToAdd);
-        }
-        if (pairsToRemove.length > 0) {
-            console.log('[manageAlertSubscriptions] Unsubscribing from pairs:', pairsToRemove);
-            xchangeServiceInstance.unsubscribe(pairsToRemove);
-        }
-        if (pairsToAdd.length === 0 && pairsToRemove.length === 0) {
-            console.log('[manageAlertSubscriptions] No changes to pair subscriptions needed.');
-        }
-        if (pairsToSubscribe.length > 0 && (pairsToAdd.length > 0 || pairsToRemove.length > 0)) {
-            console.log('[manageAlertSubscriptions] Current active subscriptions:', xchangeServiceInstance.getSubscribedPairs());
-        }
-        else if (pairsToSubscribe.length === 0) {
-            console.log('[manageAlertSubscriptions] No active alerts found for pair subscriptions.');
-            // If all pairs are to be removed, XChangeService's unsubscribe will handle sending empty `pairs` list.
-            if (currentlySubscribed.length > 0)
-                xchangeServiceInstance.unsubscribe(currentlySubscribed);
-        }
+        console.log(`[alerts] Loaded ${newActiveAlerts.length} active alert(s)`);
     }
     catch (error) {
-        console.error('[manageAlertSubscriptions] Error fetching alerts or updating subscriptions:', error);
+        console.error('[alerts] Error loading active alerts:', error);
     }
 }
 /**
@@ -331,10 +414,7 @@ function isAlertTriggered(alert, priceUpdate) {
  * Handle an alert that has been triggered
  */
 async function handleTriggeredAlert(alert, priceUpdate) {
-    console.log(`[handleTriggeredAlert DEBUG] ENTER for Alert ID: ${alert.id}, Status: ${alert.status}, Timestamp: ${new Date().toISOString()}`);
-    console.log(`[handleTriggeredAlert] Alert ${alert.id} for ${alert.currencyPair} has been triggered!`);
-    console.log(`[handleTriggeredAlert] Condition: ${alert.alertType} ${alert.triggerPrice}`);
-    console.log(`[handleTriggeredAlert] Current prices: Ask=${priceUpdate.ask}, Bid=${priceUpdate.bid}`);
+    console.log(`[handleTriggeredAlert] Alert ${alert.id} for ${alert.currencyPair} triggered: ${alert.alertType} ${alert.triggerPrice} (ask=${priceUpdate.ask}, bid=${priceUpdate.bid})`);
     const db = admin.firestore();
     const alertRef = db.collection(`users/${alert.userId}/alerts`).doc(alert.id);
     try {
@@ -342,36 +422,36 @@ async function handleTriggeredAlert(alert, priceUpdate) {
             status: 'triggered',
             triggeredAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        console.log(`[handleTriggeredAlert] Alert ${alert.id} updated to 'triggered' status in Firestore.`);
-        // Send notifications based on user preferences
+        console.log(`[handleTriggeredAlert] Alert ${alert.id} updated to 'triggered' in Firestore.`);
+    }
+    catch (error) {
+        // Returning false lets the quote handler put the alert back in memory
+        // so the next tick retries instead of silently dropping the alert.
+        console.error(`[handleTriggeredAlert] Failed to persist triggered status for alert ${alert.id}:`, error);
+        return false;
+    }
+    try {
         if (alert.notificationPreferences?.push) {
             const fcmSuccess = await sendFcmNotification(alert, priceUpdate);
-            if (fcmSuccess) {
-                console.log(`[handleTriggeredAlert] FCM notification sent for user ${alert.userId}`);
-            }
-            else {
-                console.log(`[handleTriggeredAlert] FCM notification failed or no tokens for user ${alert.userId}`);
-            }
+            console.log(`[handleTriggeredAlert] FCM ${fcmSuccess ? 'sent' : 'not sent'} for user ${alert.userId}`);
         }
         if (alert.notificationPreferences?.email) {
-            // Fetch user's email to send the notification
             const userDoc = await db.collection('users').doc(alert.userId).get();
-            if (userDoc.exists && userDoc.data()?.email) {
-                const userEmail = userDoc.data()?.email;
-                console.log(`[handleTriggeredAlert] Attempting to send email notification to ${userEmail} for user ${alert.userId}`);
+            const userEmail = userDoc.exists ? userDoc.data()?.email : undefined;
+            if (userEmail) {
                 await sendEmailNotification(alert, priceUpdate, userEmail);
             }
             else {
-                console.error(`[handleTriggeredAlert] Could not find email for user ${alert.userId} to send email notification.`);
+                console.error(`[handleTriggeredAlert] No email for user ${alert.userId}`);
             }
         }
-        // No longer needed here, as the main list is updated by manageAlertSubscriptions after Firestore change
-        // And priceUpdate handler manages the immediate de-duplication with processingAlertIds
-        // currentActiveAlerts = currentActiveAlerts.filter(a => a.id !== alert.id);
     }
     catch (error) {
-        console.error(`[handleTriggeredAlert] Error updating alert ${alert.id} or sending notifications:`, error);
+        // The alert is already marked triggered, so a notification failure
+        // must not re-arm it and cause duplicate pushes on the next tick.
+        console.error(`[handleTriggeredAlert] Notification error for alert ${alert.id}:`, error);
     }
+    return true;
 }
 /**
  * Store or update a user's FCM token in Firestore
@@ -627,97 +707,92 @@ function setupFirestoreListeners() {
         return null;
     }
 }
-if (XCHANGE_API_KEY) {
-    xchangeServiceInstance = new xchangeService_1.XChangeService(XCHANGE_API_KEY);
-    xchangeServiceInstance.connect();
-    xchangeServiceInstance.on('connected', () => {
-        console.log('[MainApp] XChangeService connected.');
-        // Manage subscriptions once connected
-        manageAlertSubscriptions();
-        // No need for periodic refresh as we're using Firestore real-time listeners
-        // that trigger manageAlertSubscriptions whenever an alert changes
-        console.log('[MainApp] XChangeService connected. Subscription management initiated.');
-    });
-    xchangeServiceInstance.on('priceUpdate', (priceUpdate) => {
-        if (currentActiveAlerts.length === 0) {
-            return;
+const lastProviderStates = new Map();
+priceEngine.on('status', (status) => {
+    let changed = false;
+    for (const provider of status.providers) {
+        const previous = lastProviderStates.get(provider.id);
+        if (previous === provider.state)
+            continue;
+        const suffix = provider.lastError ? ` (${provider.lastError})` : '';
+        console.log(`[prices] ${provider.id}: ${provider.state}${suffix}`);
+        lastProviderStates.set(provider.id, provider.state);
+        changed = true;
+    }
+    if (changed) {
+        broadcastPriceStatus(status);
+    }
+});
+priceEngine.on('quote', (quote) => {
+    broadcastPrice(quote);
+    if (!priceEngine.canTriggerAlerts(quote)) {
+        return;
+    }
+    if (currentActiveAlerts.length === 0) {
+        return;
+    }
+    const alertsToPotentiallyTrigger = [];
+    const stillActiveAlertsForNextTick = [];
+    for (const alert of currentActiveAlerts) {
+        if (alert.currencyPair.replace('/', '') !== quote.pair) {
+            stillActiveAlertsForNextTick.push(alert);
+            continue;
         }
-        const formattedPairName = priceUpdate.pair;
-        const alertsToPotentiallyTrigger = [];
-        const stillActiveAlertsForNextTick = [];
-        console.log(`[priceUpdate DEBUG] Event for pair: ${formattedPairName} at ${new Date().toISOString()}`);
-        console.log(`[priceUpdate DEBUG] Alerts for this pair in currentActiveAlerts: ${currentActiveAlerts.filter(a => a.currencyPair.replace('/', '') === formattedPairName).map(a => `${a.id} (status: ${a.status})`).join(', ')}`);
-        console.log(`[priceUpdate DEBUG] processingAlertIds before loop: ${Array.from(processingAlertIds).join(', ')}`);
-        for (const alert of currentActiveAlerts) {
-            const alertFormattedPair = alert.currencyPair.replace('/', '');
-            if (alertFormattedPair === formattedPairName) {
-                if (isAlertTriggered(alert, priceUpdate)) {
-                    alertsToPotentiallyTrigger.push(alert);
-                }
-                else {
-                    stillActiveAlertsForNextTick.push(alert);
-                }
+        if (isAlertTriggered(alert, quote)) {
+            alertsToPotentiallyTrigger.push(alert);
+        }
+        else {
+            stillActiveAlertsForNextTick.push(alert);
+        }
+    }
+    if (alertsToPotentiallyTrigger.length === 0) {
+        return;
+    }
+    currentActiveAlerts = stillActiveAlertsForNextTick;
+    for (const alert of alertsToPotentiallyTrigger) {
+        if (processingAlertIds.has(alert.id)) {
+            continue;
+        }
+        processingAlertIds.add(alert.id);
+        currentActiveAlerts = currentActiveAlerts.filter(candidate => candidate.id !== alert.id);
+        handleTriggeredAlert(alert, quote)
+            .then(persisted => {
+            if (!persisted && !currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
+                currentActiveAlerts.push(alert);
             }
-            else {
-                stillActiveAlertsForNextTick.push(alert);
+        })
+            .catch(error => {
+            console.error(`[alerts] Error handling triggered alert ${alert.id}:`, error);
+            if (!currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
+                currentActiveAlerts.push(alert);
             }
-        }
-        // If any alerts were triggered, update currentActiveAlerts to only include those not triggered this tick.
-        // This helps prevent the *same* price update event from re-evaluating already processed alerts in this specific tick.
-        if (alertsToPotentiallyTrigger.length > 0) {
-            currentActiveAlerts = stillActiveAlertsForNextTick;
-        }
-        if (alertsToPotentiallyTrigger.length === 0) {
-            return;
-        }
-        console.log(`[priceUpdate DEBUG] alertsToPotentiallyTrigger: ${alertsToPotentiallyTrigger.map(a => a.id).join(', ')}`);
-        const shouldLog = Math.random() < 0.01;
-        if (shouldLog) {
-            console.log(`[priceUpdate] ${formattedPairName} - Ask: ${priceUpdate.ask}, Bid: ${priceUpdate.bid}`);
-        }
-        for (const alert of alertsToPotentiallyTrigger) {
-            console.log(`[priceUpdate DEBUG] Checking alert ${alert.id}. Is in processingAlertIds: ${processingAlertIds.has(alert.id)}`);
-            if (processingAlertIds.has(alert.id)) {
-                console.log(`[priceUpdate] Alert ${alert.id} is already being processed. Skipping.`);
-                // Add it back to currentActiveAlerts if it's skipped here, so it can be re-evaluated by the next price tick
-                // if it wasn't successfully marked 'triggered' by the first processing attempt.
-                // However, this might re-introduce it too soon if the first handleTriggeredAlert is just slow.
-                // A better approach might be to rely on manageAlertSubscriptions to repopulate if needed after Firestore is updated.
-                // For now, let's keep it simple: if it's processing, it's locked out from this new trigger event.
-                // If the processing fails, manageAlertSubscriptions should eventually pick it up again if still 'active'.
-                continue;
-            }
-            processingAlertIds.add(alert.id);
-            console.log(`[priceUpdate] Added ${alert.id} to processingAlertIds. Current set:`, Array.from(processingAlertIds));
-            // Immediately filter this alert out of the local cache to prevent re-triggering by subsequent rapid price ticks
-            // before Firestore listener updates the cache.
-            currentActiveAlerts = currentActiveAlerts.filter(a => a.id !== alert.id);
-            // Asynchronously handle the triggered alert
-            handleTriggeredAlert(alert, priceUpdate)
-                .catch(err => {
-                console.error(`[priceUpdate] Error in async handleTriggeredAlert for ${alert.id}:`, err);
-            })
-                .finally(() => {
-                processingAlertIds.delete(alert.id);
-                console.log(`[priceUpdate] Removed ${alert.id} from processingAlertIds. Current set:`, Array.from(processingAlertIds));
-            });
-        }
-    });
-    xchangeServiceInstance.on('apiError', (error) => {
-        console.error('[MainApp] XChangeService API Error:', error);
-    });
-    xchangeServiceInstance.on('disconnected', (data) => {
-        console.log('[MainApp] XChangeService disconnected.', data?.reason);
-        // Consider clearing the interval if you want to stop refreshes when disconnected
-        // Or let it continue, and manageAlertSubscriptions will just log if not connected.
-    });
-    xchangeServiceInstance.on('error', (error) => {
-        console.error('[MainApp] XChangeService Error:', error.message);
-    });
+        })
+            .finally(() => {
+            processingAlertIds.delete(alert.id);
+        });
+    }
+});
+priceEngine.start();
+manageAlertSubscriptions().catch(error => {
+    console.error('[alerts] Initial active alert load failed:', error);
+});
+let shuttingDown = false;
+function shutdown(signal) {
+    if (shuttingDown)
+        return;
+    shuttingDown = true;
+    console.log(`[server] ${signal} received, shutting down`);
+    priceEngine.stop();
+    for (const client of wss.clients) {
+        client.terminate();
+    }
+    wss.close();
+    httpServer.close(() => process.exit(0));
+    // Do not let a stuck connection block a deploy.
+    setTimeout(() => process.exit(0), 2000).unref();
 }
-else {
-    console.error("XCHANGE_API_KEY not found in .env. XChangeService will not start.");
-}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 // TODO:
 // 1. ✅ Store FCM tokens from clients (implemented in WebSocket handler)
 // 2. ✅ Dynamic subscription updates (implemented with Firestore real-time listeners)

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { APP_PAIRS, normalizePair } from '../pairs';
-import { ProviderQuote, ProviderStatus, PriceSourceId } from '../types';
+import { ProviderQuote, ProviderStatus, PriceSourceId, readPositiveInt } from '../types';
 
 interface BiquoteRecord {
     symbol?: string;
@@ -8,12 +8,74 @@ interface BiquoteRecord {
     ask?: number | string;
     timestamp?: string;
     marketState?: string;
-    quoteAgeSeconds?: number;
-    stale?: boolean;
+    quoteAgeSeconds?: number | string;
+    stale?: boolean | string;
 }
 
 const DEFAULT_BASE_URL = 'https://biquote.io';
 const DEFAULT_POLL_MS = 1000;
+
+function asRecord(value: unknown): BiquoteRecord | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    return value as BiquoteRecord;
+}
+
+/**
+ * Parse both payload shapes biquote has used: a map keyed by symbol and an
+ * array of records with a symbol field. Exported so the contract is covered
+ * by a fixture test.
+ */
+export function parseBiquotePayload(payload: unknown): ProviderQuote[] {
+    const records: BiquoteRecord[] = [];
+
+    if (Array.isArray(payload)) {
+        for (const value of payload) {
+            const record = asRecord(value);
+            if (record) records.push(record);
+        }
+    } else if (payload && typeof payload === 'object') {
+        for (const [key, value] of Object.entries(payload as Record<string, unknown>)) {
+            const record = asRecord(value);
+            if (record) records.push({ ...record, symbol: record.symbol || key });
+        }
+    }
+
+    const quotes: ProviderQuote[] = [];
+
+    for (const record of records) {
+        const pair = normalizePair(record.symbol || '');
+        if (!(APP_PAIRS as readonly string[]).includes(pair)) continue;
+
+        const bid = Number(record.bid);
+        const ask = Number(record.ask);
+        if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) continue;
+
+        const parsedTimestamp = record.timestamp ? Date.parse(record.timestamp) : NaN;
+        const timestamp = Number.isFinite(parsedTimestamp) ? Math.floor(parsedTimestamp / 1000) : 0;
+
+        const rawAge = typeof record.quoteAgeSeconds === 'number'
+            ? record.quoteAgeSeconds
+            : typeof record.quoteAgeSeconds === 'string'
+                ? Number(record.quoteAgeSeconds)
+                : NaN;
+        const quoteAgeSeconds = Number.isFinite(rawAge) && rawAge >= 0 ? rawAge : undefined;
+
+        const providerStale = record.stale === true || record.stale === 'true';
+
+        quotes.push({
+            pair,
+            bid,
+            ask,
+            timestamp,
+            source: 'biquote',
+            marketOpen: String(record.marketState || '').toLowerCase() === 'open',
+            quoteAgeSeconds,
+            providerStale: providerStale || timestamp === 0
+        });
+    }
+
+    return quotes;
+}
 
 /**
  * biquote.io free market data feed.
@@ -22,8 +84,8 @@ const DEFAULT_POLL_MS = 1000;
  */
 export class BiquoteProvider extends EventEmitter {
     public readonly id: PriceSourceId = 'biquote';
-    private readonly baseUrl = process.env.BIQUOTE_BASE_URL || DEFAULT_BASE_URL;
-    private readonly pollMs = Number(process.env.PRICE_POLL_MS || DEFAULT_POLL_MS);
+    private readonly baseUrl: string;
+    private readonly pollMs: number;
     private timer: NodeJS.Timeout | null = null;
     private stopped = true;
     private failures = 0;
@@ -34,6 +96,12 @@ export class BiquoteProvider extends EventEmitter {
         lastError: null,
         quoteCount: 0
     };
+
+    constructor() {
+        super();
+        this.baseUrl = process.env.BIQUOTE_BASE_URL || DEFAULT_BASE_URL;
+        this.pollMs = readPositiveInt(process.env.PRICE_POLL_MS, DEFAULT_POLL_MS, 'PRICE_POLL_MS');
+    }
 
     public start(): void {
         if (!this.stopped) return;
@@ -77,38 +145,16 @@ export class BiquoteProvider extends EventEmitter {
                 throw new Error(`HTTP ${response.status}`);
             }
 
-            const payload = await response.json() as Record<string, BiquoteRecord>;
-            let quoteCount = 0;
+            const payload = await response.json();
+            if (this.stopped) return;
 
-            for (const [symbol, record] of Object.entries(payload)) {
-                const pair = normalizePair(symbol);
-                if (!(APP_PAIRS as readonly string[]).includes(pair)) continue;
-
-                const bid = Number(record.bid);
-                const ask = Number(record.ask);
-                if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) continue;
-
-                const parsedTimestamp = record.timestamp ? Date.parse(record.timestamp) : NaN;
-                const timestamp = Number.isFinite(parsedTimestamp)
-                    ? Math.floor(parsedTimestamp / 1000)
-                    : Math.floor(Date.now() / 1000);
-
-                const quote: ProviderQuote = {
-                    pair,
-                    bid,
-                    ask,
-                    timestamp,
-                    source: 'biquote',
-                    marketOpen: record.marketState === 'open',
-                    quoteAgeSeconds: typeof record.quoteAgeSeconds === 'number' ? record.quoteAgeSeconds : undefined
-                };
-
-                this.emit('quote', quote);
-                quoteCount++;
+            const quotes = parseBiquotePayload(payload);
+            if (quotes.length === 0) {
+                throw new Error('No quotes returned');
             }
 
-            if (quoteCount === 0) {
-                throw new Error('No quotes returned');
+            for (const quote of quotes) {
+                this.emit('quote', quote);
             }
 
             this.failures = 0;
@@ -117,7 +163,7 @@ export class BiquoteProvider extends EventEmitter {
                 state: 'connected',
                 lastSuccessAt: Date.now(),
                 lastError: null,
-                quoteCount
+                quoteCount: quotes.length
             };
             this.emit('status', this.getStatus());
             this.schedule(this.pollMs);

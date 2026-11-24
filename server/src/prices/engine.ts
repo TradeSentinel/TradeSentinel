@@ -1,18 +1,20 @@
 import { EventEmitter } from 'events';
 import { APP_PAIRS, displayPair, isCryptoPair, isSupportedPair, normalizePair } from './pairs';
-import { ProviderQuote, ProviderStatus, PriceEngineStatus, Quote } from './types';
+import { ProviderQuote, ProviderStatus, PriceEngineStatus, Quote, readPositiveInt } from './types';
 import { BiquoteProvider } from './providers/biquote';
 import { CoinbaseProvider } from './providers/coinbase';
 import { ExchangerateProvider } from './providers/exchangerate';
-
-const FRESH_MS = Number(process.env.PRICE_STALE_MS || 5000);
-const MAX_SOURCE_AGE_SECONDS = Number(process.env.PRICE_MAX_SOURCE_AGE_SECONDS || 10);
 
 interface ProviderLike extends EventEmitter {
     id: string;
     start(): void;
     stop(): void;
     getStatus(): ProviderStatus;
+}
+
+interface PriceEngineOptions {
+    freshMs?: number;
+    maxSourceAgeSeconds?: number;
 }
 
 /**
@@ -23,16 +25,23 @@ interface ProviderLike extends EventEmitter {
  * - forex: biquote primary, exchangerate.dev delayed fallback
  * - crypto: Coinbase primary, biquote fallback
  *
- * A fallback quote is ignored while the preferred source is fresh, so the
- * displayed price does not flicker between venues.
+ * Freshness is decided from three independent signals: the server receive
+ * time, the provider quote age, and the provider timestamp. A frozen provider
+ * timestamp can never be re-stamped as fresh by a successful poll.
  */
 export class PriceEngine extends EventEmitter {
     private readonly quotes = new Map<string, Quote>();
     private readonly providers: ProviderLike[];
+    private readonly freshMs: number;
+    private readonly maxSourceAgeSeconds: number;
     private started = false;
 
-    constructor() {
+    constructor(options: PriceEngineOptions = {}) {
         super();
+        this.freshMs = options.freshMs ?? readPositiveInt(process.env.PRICE_STALE_MS, 5000, 'PRICE_STALE_MS');
+        this.maxSourceAgeSeconds = options.maxSourceAgeSeconds
+            ?? readPositiveInt(process.env.PRICE_MAX_SOURCE_AGE_SECONDS, 10, 'PRICE_MAX_SOURCE_AGE_SECONDS');
+
         this.providers = [
             new BiquoteProvider(),
             new CoinbaseProvider(),
@@ -67,7 +76,15 @@ export class PriceEngine extends EventEmitter {
 
         const preferred = isCryptoPair(pair) ? 'coinbase' : 'biquote';
         const existing = this.quotes.get(pair);
+
         if (quote.source !== preferred && existing && existing.source === preferred && !this.isStale(existing)) {
+            return;
+        }
+
+        // Do not replace a fresher displayed quote with a stale one. A stale
+        // quote is still stored when nothing better exists, so the UI can show
+        // it with a stale flag while alerts stay suppressed.
+        if (this.isSourceStale(quote) && existing && !this.isStale(existing)) {
             return;
         }
 
@@ -80,6 +97,7 @@ export class PriceEngine extends EventEmitter {
             marketOpen: quote.marketOpen,
             delayed: Boolean(quote.delayed),
             quoteAgeSeconds: quote.quoteAgeSeconds,
+            providerStale: Boolean(quote.providerStale),
             receivedAt: Date.now()
         };
 
@@ -88,9 +106,13 @@ export class PriceEngine extends EventEmitter {
     }
 
     public isStale(quote: Quote): boolean {
-        if (Date.now() - quote.receivedAt > FRESH_MS) return true;
-        if (quote.quoteAgeSeconds !== undefined && quote.quoteAgeSeconds > MAX_SOURCE_AGE_SECONDS) return true;
-        return false;
+        if (Date.now() - quote.receivedAt > this.freshMs) return true;
+        if (quote.providerStale) return true;
+        if (quote.quoteAgeSeconds !== undefined && quote.quoteAgeSeconds > this.maxSourceAgeSeconds) return true;
+        if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0) return true;
+
+        const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        return sourceAgeSeconds > this.maxSourceAgeSeconds;
     }
 
     public canTriggerAlerts(quote: Quote): boolean {
@@ -127,10 +149,20 @@ export class PriceEngine extends EventEmitter {
                     receivedAt: quote.receivedAt,
                     stale: this.isStale(quote),
                     delayed: quote.delayed,
-                    marketOpen: quote.marketOpen
+                    marketOpen: quote.marketOpen,
+                    quoteAgeSeconds: quote.quoteAgeSeconds
                 };
             })
         };
+    }
+
+    private isSourceStale(quote: ProviderQuote): boolean {
+        if (quote.providerStale) return true;
+        if (quote.quoteAgeSeconds !== undefined && quote.quoteAgeSeconds > this.maxSourceAgeSeconds) return true;
+        if (!Number.isFinite(quote.timestamp) || quote.timestamp <= 0) return true;
+
+        const sourceAgeSeconds = Math.floor(Date.now() / 1000) - quote.timestamp;
+        return sourceAgeSeconds > this.maxSourceAgeSeconds;
     }
 
     private formatPrice(pair: string, value: number): string {

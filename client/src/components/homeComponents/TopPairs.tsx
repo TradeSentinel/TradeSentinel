@@ -39,22 +39,22 @@ export default function TopPairs() {
             <div className="mt-3 grid grid-cols-2 gap-3">
                 {initialTopPairs.map((pair, index) => {
                     const liveData = topPairsLivePrices[pair.name];
+                    const hasUsablePrice = Boolean(liveData?.ask && liveData.ask !== 'Loading...' && liveData.ask !== 'N/A' && liveData.ask !== 'Error' && liveData.ask !== 'Offline');
                     // Use live ask price if available and valid, else the default/placeholder
-                    const displayPrice = liveData?.ask && liveData.ask !== 'Loading...' && liveData.ask !== 'N/A' && liveData.ask !== 'Error' && liveData.ask !== 'Offline'
-                        ? liveData.ask
-                        : (liveData?.ask || pair.defaultPrice); // Show loading/error states if present in liveData
-
-                    // Original price color logic (no dynamic green color)
+                    const displayPrice = hasUsablePrice ? liveData?.ask : (liveData?.ask || pair.defaultPrice);
                     const priceColor = 'text-[#121926]';
+                    const priceState = liveData?.delayed ? 'Delayed'
+                        : liveData?.stale ? 'Stale'
+                            : liveData?.marketOpen === false ? 'Closed'
+                                : '';
+                    const canPrefill = hasUsablePrice && !liveData?.delayed && !liveData?.stale && liveData?.marketOpen !== false;
 
                     return (
                         <div
                             key={index}
                             onClick={() => {
-                                // Use live ask price for trigger price if available and valid
-                                const triggerPrice = liveData?.ask && liveData.ask !== 'Loading...' && liveData.ask !== 'N/A' && liveData.ask !== 'Error' && liveData.ask !== 'Offline'
-                                    ? liveData.ask
-                                    : '';
+                                // Only prefill from a fresh, open-market quote.
+                                const triggerPrice = canPrefill ? (liveData?.ask || '') : '';
                                 updateNewAlert({ ...alertInfo, currencyPair: pair.name, triggerPrice });
                                 navigateTo('/create_alert');
                             }}
@@ -77,6 +77,9 @@ export default function TopPairs() {
                                 <p className={`text-xs ${priceColor}`}>
                                     {displayPrice}
                                 </p>
+                                {priceState && (
+                                    <p className="text-[10px] font-medium text-amber-600">{priceState}</p>
+                                )}
                             </div>
                         </div>
                     );

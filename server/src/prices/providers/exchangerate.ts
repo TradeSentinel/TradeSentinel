@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { ProviderQuote, ProviderStatus, PriceSourceId } from '../types';
+import { ProviderQuote, ProviderStatus, PriceSourceId, readPositiveInt } from '../types';
 
 const URL = 'https://api.exchangerate.dev/v1/latest/USD?symbols=EUR,GBP,CHF,AUD,JPY,CAD,NZD';
 const DEFAULT_POLL_MS = 120000;
@@ -20,7 +20,7 @@ interface ExchangerateResponse {
  */
 export class ExchangerateProvider extends EventEmitter {
     public readonly id: PriceSourceId = 'exchangerate.dev';
-    private readonly pollMs = Number(process.env.FX_FALLBACK_POLL_MS || DEFAULT_POLL_MS);
+    private readonly pollMs: number;
     private timer: NodeJS.Timeout | null = null;
     private stopped = true;
     private status: ProviderStatus = {
@@ -30,6 +30,11 @@ export class ExchangerateProvider extends EventEmitter {
         lastError: null,
         quoteCount: 0
     };
+
+    constructor() {
+        super();
+        this.pollMs = readPositiveInt(process.env.FX_FALLBACK_POLL_MS, DEFAULT_POLL_MS, 'FX_FALLBACK_POLL_MS');
+    }
 
     public start(): void {
         if (!this.stopped) return;
@@ -80,6 +85,7 @@ export class ExchangerateProvider extends EventEmitter {
                 ? Math.max(0, Math.floor((Date.now() - updatedMs) / 1000))
                 : undefined;
             const marketOpen = payload.market_session === 'open';
+            const providerStale = Object.values(payload.stale || {}).some(Boolean);
 
             const derived: Array<[string, number | undefined]> = [
                 ['EURUSD', rates.EUR ? 1 / rates.EUR : undefined],
@@ -103,7 +109,8 @@ export class ExchangerateProvider extends EventEmitter {
                     source: 'exchangerate.dev',
                     marketOpen,
                     delayed: true,
-                    quoteAgeSeconds
+                    quoteAgeSeconds,
+                    providerStale
                 };
                 this.emit('quote', quote);
                 quoteCount++;

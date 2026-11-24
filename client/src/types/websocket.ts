@@ -4,6 +4,7 @@ export interface LivePrice {
     timestamp: number | null;
     stale?: boolean;
     delayed?: boolean;
+    marketOpen?: boolean;
     source?: string;
 }
 

@@ -46,8 +46,16 @@ Live app: https://tradesentinel.xyz
 
 ## Deployment
 
-- Configure `VITE_WS_SERVER_URL` to your backend WS (e.g., `wss://server.tradesentinel.xyz`).
-- Ensure valid TLS certs for production.
+- Build the server before starting: `cd server && npm run build && npm start`.
+- The repo tracks `server/dist` so platforms that run only `npm start` get the current server. Rebuild it after any server change.
+- Set `VITE_WS_SERVER_URL` to the public WebSocket URL at build time, for example `wss://server.tradesentinel.xyz`. The app logs an error if it is missing in a production build.
+- Ensure valid TLS certificates for the WebSocket endpoint and use `wss://` in production.
+
+## Tests
+
+- `cd server && npm test` runs the deterministic price engine tests: parser shapes, alert gating, fallback priority and status flags.
+- `cd server && npm run smoke:prices` checks the live primary sources. It fails unless all 8 forex pairs are on biquote and all 3 crypto pairs are on Coinbase, fresh and realtime.
+- Provider terms and verification notes: `docs/PRICE_PROVIDERS.md`.
 
 ## Price engine
 

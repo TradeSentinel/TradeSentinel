@@ -92,6 +92,30 @@ export default function EditAlert() {
         }));
     };
 
+    const priceState = !currencyPair ? 'disconnected'
+        : wsStatus === 'error' ? 'error'
+            : wsStatus === 'disconnected' ? 'disconnected'
+                : livePrice.delayed ? 'delayed'
+                    : livePrice.stale ? 'stale'
+                        : livePrice.marketOpen === false ? 'closed'
+                            : wsStatus === 'subscribed' && livePrice.ask && livePrice.bid ? 'live'
+                                : wsStatus === 'connecting' ? 'connecting'
+                                    : 'connected';
+
+    const priceStateLabel = priceState === 'live' ? 'Live'
+        : priceState === 'delayed' ? 'Delayed'
+            : priceState === 'stale' ? 'Stale'
+                : priceState === 'closed' ? 'Market closed'
+                    : priceState === 'error' ? 'Error'
+                        : priceState === 'disconnected' ? 'Disconnected'
+                            : priceState === 'connecting' ? 'Connecting'
+                                : 'Connected';
+
+    const priceBadgeClass = priceState === 'live' ? 'bg-green-100 text-green-700'
+        : priceState === 'delayed' || priceState === 'stale' || priceState === 'closed' ? 'bg-amber-100 text-amber-700'
+            : priceState === 'error' ? 'bg-red-100 text-red-700'
+                : 'bg-gray-100 text-gray-700';
+
     // Subscribe to the shared price socket once the alert data is loaded.
     useEffect(() => {
         if (!currencyPair || isFetching) {
@@ -110,6 +134,7 @@ export default function EditAlert() {
                 timestamp: quote.timestamp,
                 stale: quote.stale,
                 delayed: quote.delayed,
+                marketOpen: quote.marketOpen,
                 source: quote.source
             });
             setWsStatus('subscribed');
@@ -237,17 +262,12 @@ export default function EditAlert() {
                         <div className="bg-white rounded-xl p-3 shadow-sm mt-3 flex flex-col gap-2">
                             <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium text-[#202939]">
-                                    Live: {currencyPair}
+                                    Price: {currencyPair}
                                 </p>
                                 <span
-                                    className={`px-2 py-0.5 text-xs rounded-full font-medium 
-                                        ${wsStatus === 'subscribed' ? 'bg-green-100 text-green-700' :
-                                            wsStatus === 'connecting' || wsStatus === 'connected' ? 'bg-blue-100 text-blue-700' :
-                                                wsStatus === 'error' ? 'bg-red-100 text-red-700' :
-                                                    'bg-gray-100 text-gray-700'
-                                        }`}
+                                    className={`px-2 py-0.5 text-xs rounded-full font-medium ${priceBadgeClass}`}
                                 >
-                                    {wsStatus.charAt(0).toUpperCase() + wsStatus.slice(1)}
+                                    {priceStateLabel}
                                 </span>
                             </div>
 
@@ -267,6 +287,9 @@ export default function EditAlert() {
                                     )}
                                     {livePrice.stale && !livePrice.delayed && (
                                         <p className="text-xs text-amber-600 mt-1 text-right">Quote is stale</p>
+                                    )}
+                                    {livePrice.marketOpen === false && (
+                                        <p className="text-xs text-amber-600 mt-1 text-right">Market closed</p>
                                     )}
                                 </div>
                             ) : wsStatus === 'connecting' || (wsStatus === 'connected' && !livePrice.ask) ? (

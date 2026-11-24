@@ -114,9 +114,20 @@ const priceEngine = new PriceEngine();
 const priceSubscriptions = new Map<WebSocket, Set<string>>();
 
 function sendJson(ws: WebSocket, payload: unknown): void {
-    if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(payload));
+    if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.bufferedAmount > 1_000_000) {
+        ws.terminate();
+        return;
     }
+    ws.send(JSON.stringify(payload));
+}
+
+function snapshotPayload(quote: Quote) {
+    return {
+        ...quote,
+        displayPair: displayPair(quote.pair),
+        stale: priceEngine.isStale(quote)
+    };
 }
 
 function broadcastPriceStatus(status: PriceEngineStatus): void {
@@ -137,6 +148,7 @@ function broadcastPrice(quote: Quote): void {
         stale: priceEngine.isStale(quote),
         delayed: quote.delayed,
         marketOpen: quote.marketOpen,
+        quoteAgeSeconds: quote.quoteAgeSeconds,
         receivedAt: quote.receivedAt
     };
     for (const [ws, pairs] of priceSubscriptions) {
@@ -148,11 +160,18 @@ function broadcastPrice(quote: Quote): void {
 
 const httpServer = http.createServer((req, res) => {
     if (req.url === '/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const status = priceEngine.getStatus();
+        const connectedProviders = status.providers.filter(provider => provider.state === 'connected').length;
+        const freshPairs = status.pairs.filter(pair => !pair.missing && !pair.stale && !pair.delayed && pair.marketOpen).length;
+        const ok = connectedProviders > 0 && freshPairs > 0;
+
+        res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-            ok: true,
+            ok,
+            connectedProviders,
+            freshPairs,
             firebase: firebaseInitialized,
-            prices: priceEngine.getStatus()
+            prices: status
         }));
         return;
     }
@@ -160,7 +179,22 @@ const httpServer = http.createServer((req, res) => {
     res.end('Not found');
 });
 
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({ server: httpServer, maxPayload: 64 * 1024 });
+const aliveClients = new WeakSet<WebSocket>();
+
+const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+        if (!aliveClients.has(ws)) {
+            ws.terminate();
+            continue;
+        }
+        aliveClients.delete(ws);
+        ws.ping();
+    }
+}, 30000);
+heartbeat.unref();
+
+wss.on('close', () => clearInterval(heartbeat));
 
 httpServer.listen(Number(PORT), () => {
     console.log(`Trade Sentinel server started on port ${PORT} (WebSocket + /health)`);
@@ -168,8 +202,23 @@ httpServer.listen(Number(PORT), () => {
 
 wss.on('connection', (wsClient) => {
     console.log('Client connected to Trade Sentinel WebSocket server');
+    aliveClients.add(wsClient);
+    wsClient.on('pong', () => aliveClients.add(wsClient));
+
+    let messageCount = 0;
+    let messageWindowStartedAt = Date.now();
 
     wsClient.on('message', async (message) => {
+        if (Date.now() - messageWindowStartedAt > 10000) {
+            messageCount = 0;
+            messageWindowStartedAt = Date.now();
+        }
+        messageCount++;
+        if (messageCount > 100) {
+            wsClient.close(1008, 'Rate limit exceeded');
+            return;
+        }
+
         try {
             const messageStr = message.toString();
             const parsedMessage: WebSocketMessage = JSON.parse(messageStr);
@@ -223,10 +272,7 @@ wss.on('connection', (wsClient) => {
                     if (snapshot.length > 0) {
                         sendJson(wsClient, {
                             type: 'price_snapshot',
-                            quotes: snapshot.map(quote => ({
-                                ...quote,
-                                displayPair: displayPair(quote.pair)
-                            }))
+                            quotes: snapshot.map(snapshotPayload)
                         });
                     }
                     break;
@@ -247,19 +293,6 @@ wss.on('connection', (wsClient) => {
                     sendJson(wsClient, {
                         type: 'unsubscribed_prices',
                         pairs: subscriptions ? Array.from(subscriptions) : []
-                    });
-                    break;
-                }
-
-                case 'get_snapshot': {
-                    const subscriptions = priceSubscriptions.get(wsClient);
-                    const snapshot = priceEngine.getSnapshot(subscriptions ? Array.from(subscriptions) : []);
-                    sendJson(wsClient, {
-                        type: 'price_snapshot',
-                        quotes: snapshot.map(quote => ({
-                            ...quote,
-                            displayPair: displayPair(quote.pair)
-                        }))
                     });
                     break;
                 }
@@ -417,12 +450,8 @@ function isAlertTriggered(alert: Alert, priceUpdate: { ask: string, bid: string 
 /**
  * Handle an alert that has been triggered
  */
-async function handleTriggeredAlert(alert: Alert, priceUpdate: { ask: string, bid: string, timestamp: number }) {
-    console.log(`[handleTriggeredAlert DEBUG] ENTER for Alert ID: ${alert.id}, Status: ${alert.status}, Timestamp: ${new Date().toISOString()}`);
-
-    console.log(`[handleTriggeredAlert] Alert ${alert.id} for ${alert.currencyPair} has been triggered!`);
-    console.log(`[handleTriggeredAlert] Condition: ${alert.alertType} ${alert.triggerPrice}`);
-    console.log(`[handleTriggeredAlert] Current prices: Ask=${priceUpdate.ask}, Bid=${priceUpdate.bid}`);
+async function handleTriggeredAlert(alert: Alert, priceUpdate: { ask: string, bid: string, timestamp: number }): Promise<boolean> {
+    console.log(`[handleTriggeredAlert] Alert ${alert.id} for ${alert.currencyPair} triggered: ${alert.alertType} ${alert.triggerPrice} (ask=${priceUpdate.ask}, bid=${priceUpdate.bid})`);
 
     const db = admin.firestore();
     const alertRef = db.collection(`users/${alert.userId}/alerts`).doc(alert.id);
@@ -432,36 +461,35 @@ async function handleTriggeredAlert(alert: Alert, priceUpdate: { ask: string, bi
             status: 'triggered',
             triggeredAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        console.log(`[handleTriggeredAlert] Alert ${alert.id} updated to 'triggered' status in Firestore.`);
+        console.log(`[handleTriggeredAlert] Alert ${alert.id} updated to 'triggered' in Firestore.`);
+    } catch (error) {
+        // Returning false lets the quote handler put the alert back in memory
+        // so the next tick retries instead of silently dropping the alert.
+        console.error(`[handleTriggeredAlert] Failed to persist triggered status for alert ${alert.id}:`, error);
+        return false;
+    }
 
-        // Send notifications based on user preferences
+    try {
         if (alert.notificationPreferences?.push) {
             const fcmSuccess = await sendFcmNotification(alert, priceUpdate);
-            if (fcmSuccess) {
-                console.log(`[handleTriggeredAlert] FCM notification sent for user ${alert.userId}`);
-            } else {
-                console.log(`[handleTriggeredAlert] FCM notification failed or no tokens for user ${alert.userId}`);
-            }
+            console.log(`[handleTriggeredAlert] FCM ${fcmSuccess ? 'sent' : 'not sent'} for user ${alert.userId}`);
         }
         if (alert.notificationPreferences?.email) {
-            // Fetch user's email to send the notification
             const userDoc = await db.collection('users').doc(alert.userId).get();
-            if (userDoc.exists && userDoc.data()?.email) {
-                const userEmail = userDoc.data()?.email;
-                console.log(`[handleTriggeredAlert] Attempting to send email notification to ${userEmail} for user ${alert.userId}`);
+            const userEmail = userDoc.exists ? userDoc.data()?.email : undefined;
+            if (userEmail) {
                 await sendEmailNotification(alert, priceUpdate, userEmail);
             } else {
-                console.error(`[handleTriggeredAlert] Could not find email for user ${alert.userId} to send email notification.`);
+                console.error(`[handleTriggeredAlert] No email for user ${alert.userId}`);
             }
         }
-
-        // No longer needed here, as the main list is updated by manageAlertSubscriptions after Firestore change
-        // And priceUpdate handler manages the immediate de-duplication with processingAlertIds
-        // currentActiveAlerts = currentActiveAlerts.filter(a => a.id !== alert.id);
-
     } catch (error) {
-        console.error(`[handleTriggeredAlert] Error updating alert ${alert.id} or sending notifications:`, error);
+        // The alert is already marked triggered, so a notification failure
+        // must not re-arm it and cause duplicate pushes on the next tick.
+        console.error(`[handleTriggeredAlert] Notification error for alert ${alert.id}:`, error);
     }
+
+    return true;
 }
 
 /**
@@ -745,14 +773,18 @@ function setupFirestoreListeners() {
 const lastProviderStates = new Map<string, string>();
 
 priceEngine.on('status', (status: PriceEngineStatus) => {
+    let changed = false;
     for (const provider of status.providers) {
         const previous = lastProviderStates.get(provider.id);
         if (previous === provider.state) continue;
         const suffix = provider.lastError ? ` (${provider.lastError})` : '';
         console.log(`[prices] ${provider.id}: ${provider.state}${suffix}`);
         lastProviderStates.set(provider.id, provider.state);
+        changed = true;
     }
-    broadcastPriceStatus(status);
+    if (changed) {
+        broadcastPriceStatus(status);
+    }
 });
 
 priceEngine.on('quote', (quote: Quote) => {
@@ -796,8 +828,16 @@ priceEngine.on('quote', (quote: Quote) => {
         currentActiveAlerts = currentActiveAlerts.filter(candidate => candidate.id !== alert.id);
 
         handleTriggeredAlert(alert, quote)
+            .then(persisted => {
+                if (!persisted && !currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
+                    currentActiveAlerts.push(alert);
+                }
+            })
             .catch(error => {
                 console.error(`[alerts] Error handling triggered alert ${alert.id}:`, error);
+                if (!currentActiveAlerts.some(candidate => candidate.id === alert.id)) {
+                    currentActiveAlerts.push(alert);
+                }
             })
             .finally(() => {
                 processingAlertIds.delete(alert.id);
@@ -811,16 +851,26 @@ manageAlertSubscriptions().catch(error => {
     console.error('[alerts] Initial active alert load failed:', error);
 });
 
-process.on('SIGINT', () => {
-    console.log('Shutting down...');
-    priceEngine.stop();
-    httpServer.close(() => process.exit(0));
-});
+let shuttingDown = false;
 
-process.on('SIGTERM', () => {
+function shutdown(signal: string): void {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[server] ${signal} received, shutting down`);
+
     priceEngine.stop();
+    for (const client of wss.clients) {
+        client.terminate();
+    }
+    wss.close();
     httpServer.close(() => process.exit(0));
-});
+
+    // Do not let a stuck connection block a deploy.
+    setTimeout(() => process.exit(0), 2000).unref();
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // TODO:
 // 1. ✅ Store FCM tokens from clients (implemented in WebSocket handler)

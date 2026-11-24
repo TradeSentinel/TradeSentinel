@@ -16,7 +16,12 @@ export type PriceSocketStatus = 'disconnected' | 'connecting' | 'connected' | 's
 type QuoteListener = (quote: PriceQuote) => void;
 type StatusListener = (status: PriceSocketStatus) => void;
 
-const WS_URL = import.meta.env.VITE_WS_SERVER_URL || 'ws://localhost:8787';
+const configuredWsUrl = import.meta.env.VITE_WS_SERVER_URL;
+if (!configuredWsUrl && import.meta.env.PROD) {
+    console.error('[priceSocket] VITE_WS_SERVER_URL is missing from the production build; prices will not connect.');
+}
+
+const WS_URL = configuredWsUrl || 'ws://localhost:8787';
 
 function normalizePair(input: string): string {
     return String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -32,9 +37,11 @@ class PriceSocket {
     private readonly listeners = new Map<string, Set<QuoteListener>>();
     private readonly statusListeners = new Set<StatusListener>();
     private readonly desiredPairs = new Set<string>();
+    private readonly lastQuotes = new Map<string, PriceQuote>();
     private status: PriceSocketStatus = 'disconnected';
     private reconnectTimer: number | null = null;
     private reconnectAttempts = 0;
+    private agingTimer: number | null = null;
 
     public subscribe(pair: string, listener: QuoteListener): () => void {
         const key = normalizePair(pair);
@@ -44,9 +51,12 @@ class PriceSocket {
             this.listeners.set(key, listeners);
         }
         listeners.add(listener);
+        const alreadyDesired = this.desiredPairs.has(key);
         this.desiredPairs.add(key);
         this.ensureConnected();
-        this.send({ type: 'subscribe_prices', pairs: [key] });
+        if (!alreadyDesired) {
+            this.send({ type: 'subscribe_prices', pairs: [key] });
+        }
 
         return () => {
             const current = this.listeners.get(key);
@@ -56,6 +66,7 @@ class PriceSocket {
 
             this.listeners.delete(key);
             this.desiredPairs.delete(key);
+            this.lastQuotes.delete(key);
             this.send({ type: 'unsubscribe_prices', pairs: [key] });
             this.closeIfIdle();
         };
@@ -87,6 +98,7 @@ class PriceSocket {
             window.clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
+        this.stopAging();
         if (this.ws) {
             const socket = this.ws;
             this.ws = null;
@@ -106,11 +118,16 @@ class PriceSocket {
         this.ws = socket;
 
         socket.onopen = () => {
-            this.reconnectAttempts = 0;
             this.setStatus('connected');
+            this.startAging();
             if (this.desiredPairs.size > 0) {
                 this.send({ type: 'subscribe_prices', pairs: Array.from(this.desiredPairs) });
             }
+            window.setTimeout(() => {
+                if (this.ws === socket) {
+                    this.reconnectAttempts = 0;
+                }
+            }, 10000);
         };
 
         socket.onmessage = (event) => {
@@ -158,9 +175,9 @@ class PriceSocket {
         };
 
         socket.onclose = () => {
-            if (this.ws === socket) {
-                this.ws = null;
-            }
+            if (this.ws !== socket) return;
+            this.ws = null;
+            this.stopAging();
             this.setStatus('disconnected');
             this.scheduleReconnect();
         };
@@ -168,6 +185,7 @@ class PriceSocket {
 
     private dispatch(quote: PriceQuote): void {
         if (!quote || !quote.pair) return;
+        this.lastQuotes.set(quote.pair, quote);
         const listeners = this.listeners.get(quote.pair);
         if (!listeners) return;
         for (const listener of Array.from(listeners)) {
@@ -187,12 +205,38 @@ class PriceSocket {
             window.clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
+        this.stopAging();
         if (this.ws) {
             const socket = this.ws;
             this.ws = null;
             socket.close();
         }
         this.setStatus('disconnected');
+    }
+
+    /**
+     * The server only sends a quote when it receives one. If a provider dies,
+     * no further messages arrive, so re-emit the last quote as stale after
+     * the freshness window. This keeps the UI honest without a server tick.
+     */
+    private startAging(): void {
+        if (this.agingTimer !== null) return;
+        this.agingTimer = window.setInterval(() => {
+            const now = Date.now();
+            for (const [pair, quote] of this.lastQuotes) {
+                if (quote.stale) continue;
+                if (now - quote.receivedAt <= 8000) continue;
+                const staleQuote: PriceQuote = { ...quote, stale: true };
+                this.lastQuotes.set(pair, staleQuote);
+                this.dispatch(staleQuote);
+            }
+        }, 5000);
+    }
+
+    private stopAging(): void {
+        if (this.agingTimer === null) return;
+        window.clearInterval(this.agingTimer);
+        this.agingTimer = null;
     }
 
     private scheduleReconnect(): void {

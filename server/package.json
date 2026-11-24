@@ -7,8 +7,13 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "smoke:prices": "ts-node scripts/smoke-price-engine.ts",
-    "test": "npm test"
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
+    "test": "npm run test:prices",
+    "test:prices": "npm run typecheck:scripts && ts-node scripts/test-price-engine.ts",
+    "smoke:prices": "npm run typecheck:scripts && ts-node scripts/smoke-price-engine.ts"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
